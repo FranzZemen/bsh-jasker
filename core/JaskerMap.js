@@ -12,22 +12,26 @@
     var defer = require('node-promise').defer;
     var log = require('bunyan').createLogger({name: 'JaskerMap', level: 'info'});
     var _ = require('lodash');
-    //var NextDecision = require('./NextDecision');
-    //var EntryTask = require('./EntryTask');
-    //var ExitTask = require('./ExitTask');
+    var JaskerNextDecision = require('./JaskerNextDecision');
+    var EntryTask = require('./EntryTask');
+    var ExitTask = require('./ExitTask');
 
-    module.exports.JaskerMapConfiguration = {
-        inline: 'inline',
-        mongo: 'mongo',
-        json: 'json'
-    };
-
-    module.exports.JaskerMap = JaskerMap;
 
     function JaskerMap() {
-        var map = {};
-        var states;
+        var jaskerMapConfig = {};
+        var states = [];
         var instanceNonPersisted = true;
+
+        this.name = function () {
+            return jaskerMapConfig.name;
+        };
+        this.firstState = function () {
+            return states.length ? states[0] : undefined;
+        };
+
+        this.validState = function (state) {
+            return states.indexOf(state) >= 0;
+        };
 
         this.initialize = function (config) {
             if (config.inline) {
@@ -37,22 +41,46 @@
             } else if (config.json) {
                 return loadFromJSON(config.json);
             } else {
-                if (!defer) {log.error(new Error('No defer'));}
+                if (!defer) {
+                    log.error(new Error('No defer'));
+                }
                 var deferred = defer();
                 deferred.reject(new Error('Bad configuration - neither inline, mongo, or json'));
                 return deferred.promise;
             }
         };
 
+        this.next = function (jaskerInstance) {
+            var self = this,
+                deferred = defer(),
+                currentState,
+                err;
+
+            if (!jaskerInstance.current()) {
+                err = new Error('No current state defined on jaskerInstance ' + jaskerInstance.jaskerMapName() + ' for JaskerMap ' + jaskerMapConfig.name);
+                log.error(err);
+                deferred.reject(err);
+            }
+
+            if (!currentState) {
+
+            }
+
+
+
+
+            return deferred.promise;
+        };
+
         function loadInline(inlineConfig) {
             var deferred = defer();
-            map = inlineConfig;
-            map.type = module.exports.JaskerMapConfiguration.inline;
-            var err = validate(map);
+            jaskerMapConfig = inlineConfig;
+            jaskerMapConfig.type = module.exports.JaskerMapConfiguration.inline;
+            var err = validate(jaskerMapConfig);
             if (err) {
-                defer.reject(err);
+                deferred.reject(err);
             } else {
-                defer.resolve('Success');
+                deferred.resolve('Success');
             }
             return deferred.promise;
         }
@@ -64,60 +92,93 @@
         function loadFromJSON(jsonConfig) {
             throw new Error('Not yet implemented');
         }
-    }
 
-    // Validation
+        // Validation
 
-    function validate(map) {
-        var err = new Error('JaskerMap validation, errors in validationErrors field');
-        err.validationErrors = [];
-        if (map.length == 0) {
-            err.validationErrors.push('no states re defined');
-        }
-        _.forOwn(map, function (stateDef, state) {
-            if (state !== stateDef.name) {
-                err.validationErrors.push('state name is wrong.  Expected: ' + state + ' Found: ' + stateDef.name);
+        function validate(map) {
+            var err = new Error('JaskerMap validation, errors in validationErrors field');
+            err.validationErrors = [];
+            if (!map.name) {
+                err.validationErrors.push('no name provided');
             }
-            if (stateDef.code && typeof stateDef.code !== 'number') {
-                err.validationErrors.push('' + state + '.code is not a number: ' + stateDef.code);
+            if (map.states === undefined) {
+                err.validationErrors.push('no states are defined');
             }
-            if (stateDef.prev && (typeof stateDef.prev !== 'string')) {
-                err.validationErrors.push('' + state + '.prev is not a string: ' + stateDef.prev);
-            }
-            if (stateDef.next && (typeof stateDef.next !== 'string')) {
-                err.validationErrors.push('' + state + '.next is not a string: ' + stateDef.next);
-            }
-            validateClassDef(stateDef.nextDecision, state + '.nextDecision', 'JaskerNextDecision', NextDecision, err);
-            validateTasks(stateDef.entryTasks, state + '.entryTasks', 'EntryTask', EntryTask, err);
-            validateTasks(stateDef.exitTasks, state + '.exitTasks', 'ExitTask', ExitTask, err);
-        });
-        function validateTasks(tasks, logArrayMsg, logTaskMsg, baseClass, err) {
-            if (tasks) {
-                if (tasks.constructor !== Array) {
-                    err.validationErrors.puh(logArrayMsg + ' is not an array');
+            var noStatesVisited = true;
+            _.forOwn(map.states, function (state, key) {
+                var nextFound = false;
+                noStatesVisited = false;
+                //if (state !== stateDef.name) {
+                //err.validationErrors.push('state name is wrong.  Expected: ' + state + ' Found: ' + stateDef.name);
+                //}
+                if (state.code && !(typeof state.code === 'number' || typeof state.code === 'string')) {
+                    err.validationErrors.push('' + key + '.code is not a number or a string: ' + state.code);
+                }
+                if (state.next) {
+                    if (typeof state.next !== 'string') {
+                        err.validationErrors.push('' + key + '.next is not a string: ' + state.next);
+                    }
+                    if (map.states[state.next] === undefined) {
+                        err.validationErrors.push('' + key + '.next is not defined: ' + state.next);
+                    }
                 } else {
-                    tasks.forEach(function (val, ndx) {
-                        validateClassDef(val, logArrayMsg + '[' + ndx + ']', logTaskMsg, baseClass, err);
-                    });
+                    nextFound = true;
+                }
+                if (state.nextDecision) {
+                    if (nextFound) {
+                        err.validationErrors.push('Both next and nextDecision defined on: ' + state.next);
+                    }
+                    validateClassDef(state.nextDecision, key + '.nextDecision', 'JaskerNextDecision', JaskerNextDecision, err);
+                }
+                validateTasks(state.entryTasks, state + '.entryTasks', 'EntryTask', EntryTask, err);
+                validateTasks(state.exitTasks, state + '.exitTasks', 'ExitTask', ExitTask, err);
+                // Add this state to the states array
+                states.push(key);
+            });
+            if (noStatesVisited) {
+                err.validationErrors.push('No states defined under states');
+            }
+            if (err.validationErrors.length > 0) {
+                return err;
+            }
+
+            function validateTasks(tasks, logArrayMsg, logTaskMsg, baseClass, err) {
+                if (tasks) {
+                    if (tasks.constructor !== Array) {
+                        err.validationErrors.puh(logArrayMsg + ' is not an array');
+                    } else {
+                        tasks.forEach(function (val, ndx) {
+                            validateClassDef(val, logArrayMsg + '[' + ndx + ']', logTaskMsg, baseClass, err);
+                        });
+                    }
                 }
             }
-        }
 
-        function validateClassDef(classDef, logMsg, logClassMsg, baseClass, err) {
-            var instance;
-            if (classDef) {
-                if (typeof classDef === 'string') {
-                    instance = new (require(classDef))();
-                    if (!(instance instanceof baseClass)) {
-                        err.validationErrors.push(logMsg + ' is not a constructor for ' + logClassMsg + ': ' + classDef);
+            function validateClassDef(classDef, logMsg, logClassMsg, baseClass, err) {
+                var instance;
+                if (classDef) {
+                    if (typeof classDef === 'string') {
+                        var classDefClass = require(classDef);
+                        if (!classDefClass) {
+                            err.validationErrors.push(logMsg + ' constructor for ' + logClassMsg + ' not found by require: ' + classDef);
+                        } else {
+                            if (typeof classDefClass !== 'function') {
+                                err.validationErrors.push(logMsg + ' constructor for ' + logClassMsg + ' is not a constructor (or function): ' + classDef);
+                            } else {
+                                instance = new classDefClass();
+                                if (!(instance instanceof baseClass)) {
+                                    err.validationErrors.push(logMsg + ' is not a constructor for ' + logClassMsg + ': ' + classDef);
+                                }
+                            }
+                        }
+                    } else if (typeof classDef === 'function') {
+                        instance = new classDef();
+                        if (!(instance instanceof baseClass)) {
+                            err.validationErrors.push(logMsg + ' is not a constructor for ' + logClassMsg + ': ' + classDef.name);
+                        }
+                    } else {
+                        err.validationErrors.push(logMsg + ' is neither a string or a function');
                     }
-                } else if (typeof classDef === 'function') {
-                    instance = new classDef();
-                    if (!(instance instanceof baseClass)) {
-                        err.validationErrors.push(logMsg + ' is not a constructor for ' + logClassMsg + ': ' + classDef);
-                    }
-                } else {
-                    err.validationErrors.push(logMsg + ' is neither a string or a function');
                 }
             }
         }
@@ -218,7 +279,7 @@
                 staticTransitionExample1: {
                     from: 'String, required: The starting state',
                     to: 'String, required: The destination state',
-                    transitionTasks : {}
+                    transitionTasks: {}
                 }
             }
         },
@@ -263,17 +324,24 @@
                 },
                 dynamicLinkageExample2: {}
             },
-            static : {
-                comment : 'Static linkages will always be executed',
-                staticLinkageExample1 : {
-                    jaskerMap : 'already documented',
+            static: {
+                comment: 'Static linkages will always be executed',
+                staticLinkageExample1: {
+                    jaskerMap: 'already documented',
                     state: 'already documented',
                     invokeEntryTasks: 'boolean, optional: If missing or set to false will bypass state entry ' +
                     'tasks in the target state.',
-                    linkageTasks : {}
+                    linkageTasks: {}
                 }
             }
         }
     };
 
+    module.exports.JaskerMapConfiguration = {
+        inline: 'inline',
+        mongo: 'mongo',
+        json: 'json'
+    };
+
+    module.exports.JaskerMap = JaskerMap;
 })();

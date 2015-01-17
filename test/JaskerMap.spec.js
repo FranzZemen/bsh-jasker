@@ -6,30 +6,79 @@
     'use strict';
 
     var should = require('should');
+    var log = require('bunyan').createLogger({name: 'JaskerMap.spec', level: 'debug'});
 
     var JaskerMapConfiguration,
         JaskerMap,
-        jaskerMap;
+        JaskerNextDecision,
+        initMap,
+        jaskerMap,
+        nextDecisionImpl,
+        inlineDefinition = require('./jaskerTestMap');
 
 
-
-    describe('JaskMap Tests', function () {
+    describe('JaskMap Initialization Tests', function () {
         it('should load the modules', function () {
             JaskerMapConfiguration = require('../core/JaskerMap').JaskerMapConfiguration;
             JaskerMap = require('../core/JaskerMap').JaskerMap;
+            JaskerNextDecision = require('../core/JaskerNextDecision');
+
+            JaskerMapConfiguration.should.be.ok;
+            JaskerMap.should.be.ok;
+            JaskerNextDecision.should.be.ok;
+
+            function NextDecisionImpl() {
+                JaskerNextDecision.call(this);
+            }
         });
         it('should create a JaskerMap instance', function () {
-            jaskerMap = new JaskerMap();
-            (jaskerMap).should.be.ok;
+            initMap = new JaskerMap();
+            (initMap).should.be.ok;
         });
-        it('should fail to initialize the empty configuration', function(done) {
-            jaskerMap.initialize({}).then(function success(val){
+        it('should fail to initialize the empty configuration', function (done) {
+            initMap.initialize({}).then(function success(val) {
                 (val).should.not.be.ok;
                 done();
             }, function fail(err) {
                 (err !== undefined).should.be.ok;
+                err.message.should.equal('Bad configuration - neither inline, mongo, or json');
                 done();
             });
         });
-    })
+        it('should succeed to initialize the inline configuration (vary inline configuration to do failure tests)', function (done) {
+            initMap.initialize(inlineDefinition)
+                .then(function success(val) {
+                    (val).should.be.ok;
+                    done();
+                }, function fail(err) {
+                    log.debug({validationErrors: err.validationErrors}, 'Validation Errors');
+                    (err.validationErrors !== undefined).should.not.be.ok;
+                    done();
+                });
+        });
+    });
+
+    describe('JaskMap Post Intiialization Tests', function () {
+        beforeEach(function (done) {
+            jaskerMap = new JaskerMap();
+            jaskerMap.initialize(inlineDefinition).then(function () {
+                done();
+            }, function (err) {
+                log.error(err);
+                done(err)
+            });
+        });
+        it('should return the name=test', function () {
+            jaskerMap.name().should.equal('test');
+        });
+        it('should return the first state=stateTest1', function () {
+            jaskerMap.firstState().should.equal('stateTest1');
+        });
+        it('should say state=hello is not a valid state', function () {
+            jaskerMap.validState('hello').should.not.be.ok;
+        });
+        it('should say state=stateTest2 is a valid state', function () {
+            jaskerMap.validState('stateTest2').should.be.ok;
+        });
+    });
 })();
