@@ -7,4 +7,5 @@
 
     module.exports.JaskerMapConfiguration = require ('./JaskerMap').JaskerMapConfiguration;
     module.exports.JaskerMap = require ('./JaskerMap').JaskerMap;
+    module.exports.JaskerInstance = require('./JaskerInstance');
 })();

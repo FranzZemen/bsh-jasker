@@ -14,6 +14,13 @@
     var log = require('bunyan').createLogger({name: 'JaskerInstance', level: 'info'});
     var JaskerMap = require('./JaskerMap').JaskerMap;
 
+    /**
+     * Create an instance of a JaskerMap flow.
+     * @param jaskerMap JaskerMap
+     * @param start String
+     * @param document Object
+     * @constructor
+     */
     function JaskerInstance(jaskerMap, start, document) {
         var err,
             instanceData = {};
