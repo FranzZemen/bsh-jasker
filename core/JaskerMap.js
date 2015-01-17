@@ -53,22 +53,39 @@
         this.next = function (jaskerInstance) {
             var self = this,
                 deferred = defer(),
-                currentState,
                 err;
-
+            log.debug('Next called for JaskerInstance' + jaskerInstance.id() + ' in JaskerMap: ' + self.name());
             if (!jaskerInstance.current()) {
-                err = new Error('No current state defined on jaskerInstance ' + jaskerInstance.jaskerMapName() + ' for JaskerMap ' + jaskerMapConfig.name);
+                err = new Error('No current state defined on jaskerInstance ' + jaskerInstance.jaskerMapName() + ' for JaskerMap ' + self.name());
                 log.error(err);
                 deferred.reject(err);
+            } else if(states.indexOf(jaskerInstance.current()) < 0) {
+                err = new Error('No state in JaskerMap ' + self.name() + ' named ' + jaskerInstance.current());
+                log.error(err);
+                deferred.reject(err);
+            } else {
+                var state = stateForName(jaskerInstance.current());
+                // Determine the next state trivial decision (no splits)
+                var nextState = state.next;
+                if (!nextState) {
+                    // TODO:
+                    if (state.nextDecision) {
+                        nextState = undefined;
+                    }
+                }
+                if (nextState) {
+                    log.debug('Setting next state ' + nextState + ' on JaskerInstance ' + jaskerInstance.id());
+                    jaskerInstance.newState(nextState);
+                }
+
+                deferred.resolve(jaskerInstance);
+
+                // TODO: Execute exitTasks from current state
+                // TODO: Determine splits (doc splits up)
+                // TODO: Execute transition logic (including state entry tasks)
+                // TODO: Execute linkage logic
+                // TODO: Execute state entry tasks
             }
-
-            if (!currentState) {
-
-            }
-
-
-
-
             return deferred.promise;
         };
 
@@ -182,6 +199,10 @@
                 }
             }
         }
+
+        function stateForName(name) {
+            return jaskerMapConfig.states[name];
+        }
     }
 
     var stateMapSpecification = {
@@ -197,6 +218,19 @@
                 'any entry in nextDecision will be ignored.  If neither next nor nextDecision are provided, the ' +
                 'state is considered to be a terminal state.',
 
+                done : {
+                    donePeriod : 'number, optiona: milliseconds between which to check the doneDecision',
+                    doneDecision: 'JaskerDoneDecision subclass, optiona: dynamically determine when the state is done and' +
+                    'the next state or nextStateDecision, transitions and linkages should be invoked.  This allows ' +
+                    'for an automated way to move the work along; the alternative being to have non state engine related' +
+                    'code determine that.\\r\\n' +
+                    'doneDecisions are evaluated immediately after a successful state entry and every time the donePeriod' +
+                    '(if configured) is evaluated.\\r\\n' +
+                    'Evidently, the JaskerDoneDecision subclass would operate on domain data be it from the document or' +
+                    'some other source.\\r\\n' +
+                    'Jasker will not trip an asynchronous doneDecisions with itself.  The next invocation of the ' +
+                    'doneDecision will not fire unless the previous one is complete.'
+                },
                 nextDecision: 'JaskerNextDecision subclass, optional: dynamically determine next state.  If neither ' +
                 'nextDecisoin nor next is provided, the state is considered to be a terminal state. \\r\\n' +
                 'nextDecision is either a constructor (inline) or a string from which a module can be loaded.\\r\\n' +

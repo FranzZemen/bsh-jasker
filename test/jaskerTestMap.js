@@ -15,8 +15,6 @@
                     next: 'stateTest3'
                 },
                 stateTest3: {
-                    next: 'stateTest1',
-                    nextDecision: './JaskerNextDecision'
                 }
             }
         }

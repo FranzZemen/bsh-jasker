@@ -11,7 +11,7 @@
 (function () {
     'use strict';
     var defer = require('node-promise').defer;
-    var log = require('bunyan').createLogger({name: 'JaskerInstance', level: 'debug'});
+    var log = require('bunyan').createLogger({name: 'JaskerInstance', level: 'info'});
     var JaskerMap = require('./JaskerMap').JaskerMap;
 
     function JaskerInstance(jaskerMap, start, document) {
@@ -50,13 +50,24 @@
         this.id = function () {
             return instanceData._id;
         };
+        /*
+        this.document = function () {
+            return document;
+        };*/
         /**
          *
-         * @returns a promise
+         * @returns a promise whose value is either a JaskerIntance (if no linkage or splits have occured) or an array of
+         * JaskerInstances otherwise.
          */
         this.next = function () {
-            return jaskerMap.next(document);
-        }
+            var self = this;
+            return jaskerMap.next(self);
+        };
+
+        this.newState = function(state) {
+            var self = this;
+            instanceData.current = state;
+        };
     }
 
     module.exports = JaskerInstance;
