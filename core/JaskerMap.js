@@ -47,7 +47,7 @@
         function loadInline(inlineConfig) {
             var deferred = defer();
             map = inlineConfig;
-            map.type = exports.mapTypes.inline;
+            map.type = module.exports.JaskerMapConfiguration.inline;
             var err = validate(map);
             if (err) {
                 defer.reject(err);
