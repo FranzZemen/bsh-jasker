@@ -1,0 +1,34 @@
+{
+  "name": "bsh-jasker",
+  "version": "0.0.4",
+  "description": "A state process framework",
+  "main": "core/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FranzZemen/bsh-jasker"
+  },
+  "keywords": [
+    "workflow",
+    "state-process",
+    "state-engine",
+    "state",
+    "process"
+  ],
+  "author": "Franz Zemen <franzzemen@gmail.com> (https://www.linkedin.com/pub/franz-zemen/0/2b5/105)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/FranzZemen/bsh-jasker/issues"
+  },
+  "homepage": "https://github.com/FranzZemen/bsh-jasker",
+  "devDependencies": {
+    "should": "^4.6.0"
+  },
+  "dependencies": {
+    "bunyan": "^1.2.4",
+    "lodash": "^2.4.1",
+    "node-promise": "^0.5.11"
+  }
+}
