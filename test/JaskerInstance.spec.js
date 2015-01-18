@@ -15,7 +15,7 @@
 
     describe('JaskerInstance Tests', function () {
         beforeEach(function (done) {
-            jaskerMap = new JaskerMap();
+            jaskerMap = new JaskerMap([{path: 'debug.log', level: 'debug'}]);
             jaskerMap.initialize(require('./jaskerTestMap'))
                 .then(function () {
                     jaskerInstance = new JaskerInstance(jaskerMap, 'stateTest1', document);

@@ -1,10 +1,24 @@
 ## Notes:
-- Uses bunyan as a logging system.  If youre not used to bunyan and want to parse logs, install bunyan -g and pipe output to bunyan (see docs).
+
+- Uses bunyan as a logging system.
+
+If youre not used to bunyan and want to parse logs, install bunyan -g and pipe output to bunyan (see docs).
+
+Supports setting the bunyan streams array for Jasker core classes.  See bunyan on how to structure the array.
+
 
 ## Current Functionality:
+
+### Since v0.0.13
+
+  - Define the bunyan streams array to use for logging.  If not provided, uses process.stdout
+
+### Since v0.0.12
+
   - Create JaskerMap
   - Create a simple state map consisting of static next states
   - Supports cloning for multiple downstream states (flow splits)
+
 
 ## Sample Application
 

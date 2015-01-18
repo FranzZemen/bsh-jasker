@@ -11,9 +11,10 @@
 (function () {
     'use strict';
     var defer = require('node-promise').defer;
-    var log = require('bunyan').createLogger({name: 'JaskerInstance', level: 'info'});
+    var bunyan = require('bunyan');
     var _ = require ('lodash');
     var JaskerMap = require('./JaskerMap').JaskerMap;
+    var log;
 
     /**
      * Create an instance of a JaskerMap flow.
@@ -25,6 +26,11 @@
      * @constructor
      */
     function JaskerInstance(jaskerMap, start, document, ref, sequence) {
+        if (jaskerMap.bunyanStreams()) {
+            log = bunyan.createLogger({name: 'JaskerInstance', streams : jaskerMap.bunyanStreams()});
+        } else {
+            log = bunyan.createLogger({name: 'JaskerInstance', level: 'info'});
+        }
         var err,
             instanceData = {};
 

@@ -10,18 +10,26 @@
     'use strict';
 
     var defer = require('node-promise').defer;
-    var log = require('bunyan').createLogger({name: 'JaskerMap', level: 'info'});
+    var bunyan = require('bunyan');
     var _ = require('lodash');
     var JaskerNextDecision = require('./JaskerNextDecision');
     var EntryTask = require('./EntryTask');
     var ExitTask = require('./ExitTask');
 
-
-    function JaskerMap() {
+    var log;
+    function JaskerMap(bunyanStreams) {
+        if (bunyanStreams) {
+            log = bunyan.createLogger({name: 'JaskerMap', streams : bunyanStreams});
+        } else {
+            log = bunyan.createLogger({name: 'JaskerMap', level: 'info'});
+        }
         var jaskerMapConfig = {};
         var states = [];
         var instanceNonPersisted = true;
 
+        this.bunyanStreams = function() {
+            return bunyanStreams;
+        };
         this.name = function () {
             return jaskerMapConfig.name;
         };
@@ -103,9 +111,9 @@
         function debugJaskerInstance(self,instance, message, object) {
             if (log.debug()) {
                 if (object) {
-                    log.debug({jaskerMap: self.name(), jaskerInstance: instance.id(), ref: object}, message);
+                    log.debug({jaskerMap: self.name(), jaskerInstance: instance.ref(), ref: object}, message);
                 } else {
-                    log.debug({jaskerMap: self.name(), jaskerInstance: instance.id()}, message);
+                    log.debug({jaskerMap: self.name(), jaskerInstance: instance.ref()}, message);
                 }
             }
         }
