@@ -12,9 +12,12 @@
                     next: 'stateTest2'
                 },
                 stateTest2: {
-                    next: 'stateTest3'
+                    next: ['stateTest3','stateTest4']
                 },
                 stateTest3: {
+                },
+                stateTest4: {
+                    next: 'stateTest1'
                 }
             }
         }

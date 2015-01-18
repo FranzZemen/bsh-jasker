@@ -6,6 +6,7 @@
     'use strict';
     var log = require('bunyan').createLogger({name: 'JaskerInstance.spec', level: 'info'}),
         when = require('node-promise').when,
+        then = require('node-promise').then,
         JaskerMap = require('../core/JaskerMap').JaskerMap,
         JaskerInstance = require('../core/JaskerInstance'),
         jaskerMap,
@@ -22,7 +23,9 @@
                     log.error(err);
                     done(err);
                 });
+            jaskerInstance = new JaskerInstance(jaskerMap, 'stateTest1', document);
         });
+
         it('should create the instance synchronously', function () {
             jaskerInstance = new JaskerInstance(jaskerMap, 'stateTest1', document);
         });
@@ -33,24 +36,35 @@
             log.debug('Id: ' + jaskerInstance.id());
             jaskerInstance.id().indexOf('Document').should.be.greaterThan(0);
         });
-        it('next should transition to stateTest3', function (done) {
-
-            function nextState(jInstance) {
-                return when(jInstance.next(), function (jinstanceAgain) {
-                    return jinstanceAgain;
-                }, function (err) {
-                    log.err(err);
-                    done(err);
-                    return (jInstance);
-                });
-            }
-            when(jaskerInstance.next(), function () {
-                return when(jaskerInstance.next(), function() {
-                    return jaskerInstance;
-                })
-            }).then(function (jInstance) {
-                jInstance.current().should.equal('stateTest3');
+        it('next should transition to stateTest2', function (done) {
+            jaskerInstance.next().then(function (val) {
+                (val instanceof JaskerInstance).should.be.ok;
+                val.current().should.be.equal('stateTest2');
                 done();
+            }, function (err) {
+                log.error(err);
+                done(err);
+            });
+        });
+
+        it('next() should split and transition to stateTest3 and stateTest 4', function (done) {
+            jaskerInstance.next().then(function (val) {
+                jaskerInstance.next().then(function(val) {
+                    (val instanceof Array).should.be.ok;
+                    val.length.should.equal(2);
+                    val.forEach(function (instance) {
+                        (instance instanceof JaskerInstance).should.be.ok;
+                        debug.info('ref: ' + instance.ref())
+                    });
+                    val[0].current().should.equal('stateTest3');
+                    val[1].current().should.equal('stateTest4');
+                    done();
+                }, function(err) {
+                    done(err);
+                });
+            }, function (err) {
+                log.error(err);
+                done(err);
             });
         });
     });

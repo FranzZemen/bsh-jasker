@@ -25,6 +25,9 @@
         this.name = function () {
             return jaskerMapConfig.name;
         };
+        this.docKeyField = function () {
+            return jaskerMapConfig.docKeyField;
+        };
         this.firstState = function () {
             return states.length ? states[0] : undefined;
         };
@@ -54,7 +57,7 @@
             var self = this,
                 deferred = defer(),
                 err;
-            log.debug('Next called for JaskerInstance' + jaskerInstance.id() + ' in JaskerMap: ' + self.name());
+            debugJaskerInstance(self,jaskerInstance, '\'next\' called');
             if (!jaskerInstance.current()) {
                 err = new Error('No current state defined on jaskerInstance ' + jaskerInstance.jaskerMapName() + ' for JaskerMap ' + self.name());
                 log.error(err);
@@ -66,20 +69,28 @@
             } else {
                 var state = stateForName(jaskerInstance.current());
                 // Determine the next state trivial decision (no splits)
-                var nextState = state.next;
-                if (!nextState) {
-                    // TODO:
-                    if (state.nextDecision) {
-                        nextState = undefined;
-                    }
+                var nextStates = [];
+                if (state.next && typeof state.next === 'string') {
+                    nextStates.push(state.next);
+                } else if (state.next instanceof Array) {
+                    nextStates = state.next;
                 }
-                if (nextState) {
-                    log.debug('Setting next state ' + nextState + ' on JaskerInstance ' + jaskerInstance.id());
-                    jaskerInstance.newState(nextState);
+                if (state.nextDecision) {
+                    nextStates.concat(state.nextDecision());
                 }
-
-                deferred.resolve(jaskerInstance);
-
+                if (nextStates.length > 1) {
+                    debugJaskerInstance(self, jaskerInstance, 'More than one next state found, splits will be performed', nextStates);
+                    // Split the jaskerInstance
+                    var jaskerInstances = jaskerInstance.split(nextStates.length);
+                    jaskerInstances.forEach(function (instance, ndx) {
+                        instance.newState(nextStates[ndx]);
+                    });
+                    deferred.resolve(jaskerInstances);
+                } else if (nextStates.length == 1) {
+                    debugJaskerInstance(self, jaskerInstance, 'Setting next state', nextStates);
+                    jaskerInstance.newState(nextStates[0]);
+                    deferred.resolve(jaskerInstance);
+                }
                 // TODO: Execute exitTasks from current state
                 // TODO: Determine splits (doc splits up)
                 // TODO: Execute transition logic (including state entry tasks)
@@ -88,6 +99,16 @@
             }
             return deferred.promise;
         };
+
+        function debugJaskerInstance(self,instance, message, object) {
+            if (log.debug()) {
+                if (object) {
+                    log.debug({jaskerMap: self.name(), jaskerInstance: instance.id(), ref: object}, message);
+                } else {
+                    log.debug({jaskerMap: self.name(), jaskerInstance: instance.id()}, message);
+                }
+            }
+        }
 
         function loadInline(inlineConfig) {
             var deferred = defer();
@@ -115,8 +136,15 @@
         function validate(map) {
             var err = new Error('JaskerMap validation, errors in validationErrors field');
             err.validationErrors = [];
-            if (!map.name) {
+            if (map.name) {
+                if (typeof map.name !== 'string') {
+                    err.validationErrors.push('name is not a string');
+                }
+            } else {
                 err.validationErrors.push('no name provided');
+            }
+            if (map.docKeyField && typeof map.docKeyField !== 'string') {
+                err.validationErrors('docKeyField is not a string');
             }
             if (map.states === undefined) {
                 err.validationErrors.push('no states are defined');
@@ -132,21 +160,19 @@
                     err.validationErrors.push('' + key + '.code is not a number or a string: ' + state.code);
                 }
                 if (state.next) {
-                    if (typeof state.next !== 'string') {
-                        err.validationErrors.push('' + key + '.next is not a string: ' + state.next);
+                    if (typeof state.next == 'string') {
+                        if (map.states[state.next] === undefined) {
+                            err.validationErrors.push('' + key + '.next is not defined: ' + state.next);
+                        }
+                    } else if (state.next instanceof Array) {
+                        state.next.forEach(function(thisState,ndx) {
+                            if (map.states[thisState] === undefined) {
+                                err.validationErrors.push('' + key + '.next is not defined: ' + thisState);
+                            }
+                        });
                     }
-                    if (map.states[state.next] === undefined) {
-                        err.validationErrors.push('' + key + '.next is not defined: ' + state.next);
-                    }
-                } else {
-                    nextFound = true;
                 }
-                if (state.nextDecision) {
-                    if (nextFound) {
-                        err.validationErrors.push('Both next and nextDecision defined on: ' + state.next);
-                    }
-                    validateClassDef(state.nextDecision, key + '.nextDecision', 'JaskerNextDecision', JaskerNextDecision, err);
-                }
+                validateClassDef(state.nextDecision, key + '.nextDecision', 'JaskerNextDecision', JaskerNextDecision, err);
                 validateTasks(state.entryTasks, state + '.entryTasks', 'EntryTask', EntryTask, err);
                 validateTasks(state.exitTasks, state + '.exitTasks', 'ExitTask', ExitTask, err);
                 // Add this state to the states array
@@ -207,16 +233,15 @@
 
     var stateMapSpecification = {
         name: 'String, required: a required unique string representing the name of this JaskerMap',
+        docKeyField : 'String, optional: if a document is provided, a field that represents its key.  Even if a' +
+        'document is provided, this is optiona.  The JaskerInstance will append the document key value to its' +
+        'internal instance referece.  It greatly assists troubleshooting, maintenance, data mining etc.',
         states: {
             stateExample1: {
                 code: 'Alphanumeric, optional: an optional arbitrary alpha-numeric value',
 
                 data: 'Object, optional: arbitrary static JSON contents that is provided to custome BSHLogic ' +
                 'implementations when operating on this state',
-
-                next: 'String, optional: statically provided next state name (for instance, ‘state2’).  If next is specified ' +
-                'any entry in nextDecision will be ignored.  If neither next nor nextDecision are provided, the ' +
-                'state is considered to be a terminal state.',
 
                 done : {
                     donePeriod : 'number, optiona: milliseconds between which to check the doneDecision',
@@ -231,6 +256,10 @@
                     'Jasker will not trip an asynchronous doneDecisions with itself.  The next invocation of the ' +
                     'doneDecision will not fire unless the previous one is complete.'
                 },
+                next: 'String or array of String, optional: statically provided next state name (for instance, ‘state2’).  ' +
+                'If neither next nor nextDecision are provided, the state is considered to be a terminal state.\\r\\n' +
+                'If an array is provide, a split occurs, where a JaskerInstance is split into two instances',
+
                 nextDecision: 'JaskerNextDecision subclass, optional: dynamically determine next state.  If neither ' +
                 'nextDecisoin nor next is provided, the state is considered to be a terminal state. \\r\\n' +
                 'nextDecision is either a constructor (inline) or a string from which a module can be loaded.\\r\\n' +
@@ -241,6 +270,17 @@
                 'There can be only zero or one nextDecision per state.\\r\\n' +
                 'Note that nextDecision supports splits, which means that the workflow can split to more than one state.' +
                 'In that case, each split is unique from a perspective of error and rollback',
+
+                splitMode: 'Split mode (if and) when flow splits.  If set to \'copy\' then the underlying domain document ' +
+                'within the JaskerInstnace, if provided is copied.  If missing or set to \'reference\' then the underlying ' +
+                'domain document is shared.  Since this can be set at each state, different splitModes can be used ' +
+                'depending on the type of flows.  \\r\\n' +
+                'For example, if the split is permanent (never re-merged, it may ' +
+                'represent a flow that goes to different business units or systems.  In that case a splitMode of ' +
+                '\'copy\' is appropriate.  On the other hand, if changes are being made in parallel, but the changes' +
+                'should be made to the latest version, then a splitMode of \'reference\' is appropriate',
+
+
 
                 entryTasks: {
                     entryTaskExample1: {

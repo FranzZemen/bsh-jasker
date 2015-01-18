@@ -17,11 +17,13 @@
     /**
      * Create an instance of a JaskerMap flow.
      * @param jaskerMap JaskerMap
-     * @param start String
-     * @param document Object
+     * @param start String optional
+     * @param document Object optional
+     * @param ref String optional (used in splits)
+     * @param sequence
      * @constructor
      */
-    function JaskerInstance(jaskerMap, start, document) {
+    function JaskerInstance(jaskerMap, start, document, ref, sequence) {
         var err,
             instanceData = {};
 
@@ -41,37 +43,65 @@
         if (!document) {
             log.warn('No document provided for JaskerInstance.  Context based decisions using document will not be possible');
         }
-        instanceData._id = jaskerMap.name() + ':' + start + ':' + Date.now() + ':' +
-        ((!document) ? 'undefined' :
-                document._id ? document._id :
-                    document.name ? document.name :
-                        document.key ? document.key : 'UNKNOWN_ID');
+        if (ref) {
+            // This is the result of a split
+            instanceData.ref = ref;
+            instanceData.sequence = sequence;
+        } else {
+            instanceRef.ref = '' + Date.now();
+            if (document && jaskerMap.docKeyField()) {
+                instance.ref += ':doc.' + jaskerMap.docKeyField() + '(' + document[jaskerMap.docKeyField()] + ')';
+            }
+            instanceRef += ':' + jaskerMap.name() + ':' + start;
+            instanceData.sequence = 'O';
+        }
+        instanceData.split = [];
         instanceData.start = start;
         instanceData.current = start;
-        log.debug({instanceData : instanceData}, 'instanceData');
+
 
         this.current = function () {
             return instanceData.current;
         };
 
-        this.id = function () {
-            return instanceData._id;
+        this.ref = function () {
+            return instanceData.ref;
         };
-        /*
+
         this.document = function () {
             return document;
-        };*/
+        };
+
+        /**
+         * Split this instance into splitCount instances.  The current instance is preserved as the first split
+         * @param splitCount
+         * @returns {Array}
+         */
+        this.split = function (splitCount) {
+            var self = this;
+            var time = Date.now();
+            // Note that the original instance, which continues as one of the flows, does not get its ref changed,
+            // Whereas the new instances have appended a -sN to the ref.
+            // If a document splits at multiple states, it could have any number of -sN-sM-sP....
+            instanceData.split.push({state: self.current(), time: time, splitNdx: 0, splitCount: splitCount});
+            var instances = new Array(splitCount);
+            instances[0] = self;
+            for (var i = 1; i < splitCount; i++) {
+                instances[i] = new JaskerInstance(jaskerMap, self.current(), document, self);
+            }
+            return instances;
+        };
         /**
          *
          * @returns a promise whose value is either a JaskerIntance (if no linkage or splits have occured) or an array of
-         * JaskerInstances otherwise.
+         * JaskerInstances (including this one) otherwise.
          */
         this.next = function () {
             var self = this;
             return jaskerMap.next(self);
         };
 
-        this.newState = function(state) {
+        this.newState = function (state) {
             var self = this;
             instanceData.current = state;
         };
