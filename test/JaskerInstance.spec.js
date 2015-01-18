@@ -18,12 +18,12 @@
             jaskerMap = new JaskerMap();
             jaskerMap.initialize(require('./jaskerTestMap'))
                 .then(function () {
+                    jaskerInstance = new JaskerInstance(jaskerMap, 'stateTest1', document);
                     done();
                 }, function (err) {
                     log.error(err);
                     done(err);
                 });
-            jaskerInstance = new JaskerInstance(jaskerMap, 'stateTest1', document);
         });
 
         it('should create the instance synchronously', function () {
@@ -32,9 +32,9 @@
         it('should have current state as stateTest1', function () {
             jaskerInstance.current().should.equal('stateTest1');
         });
-        it('should have id that ends with Document', function () {
-            log.debug('Id: ' + jaskerInstance.id());
-            jaskerInstance.id().indexOf('Document').should.be.greaterThan(0);
+        it('should have id that contains doc', function () {
+            log.debug('Ref: ' + jaskerInstance.ref());
+            jaskerInstance.ref().indexOf('doc').should.be.greaterThan(0);
         });
         it('next should transition to stateTest2', function (done) {
             jaskerInstance.next().then(function (val) {
@@ -54,10 +54,11 @@
                     val.length.should.equal(2);
                     val.forEach(function (instance) {
                         (instance instanceof JaskerInstance).should.be.ok;
-                        debug.info('ref: ' + instance.ref())
                     });
                     val[0].current().should.equal('stateTest3');
                     val[1].current().should.equal('stateTest4');
+                    (val[0].document().cloned === undefined).should.be.ok;
+                    (val[1].document().cloned).should.be.ok;
                     done();
                 }, function(err) {
                     done(err);

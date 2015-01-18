@@ -81,7 +81,7 @@
                 if (nextStates.length > 1) {
                     debugJaskerInstance(self, jaskerInstance, 'More than one next state found, splits will be performed', nextStates);
                     // Split the jaskerInstance
-                    var jaskerInstances = jaskerInstance.split(nextStates.length);
+                    var jaskerInstances = jaskerInstance.split(nextStates.length, state.splitMode);
                     jaskerInstances.forEach(function (instance, ndx) {
                         instance.newState(nextStates[ndx]);
                     });
@@ -158,6 +158,9 @@
                 //}
                 if (state.code && !(typeof state.code === 'number' || typeof state.code === 'string')) {
                     err.validationErrors.push('' + key + '.code is not a number or a string: ' + state.code);
+                }
+                if (state.splitMode && state.splitMode !== 'clone' && state.splitMode !== 'reference') {
+                    err.validationErrors.push('' + key + '.splitMode is provided but value not \'clone\' or \'reference\'');
                 }
                 if (state.next) {
                     if (typeof state.next == 'string') {
@@ -271,16 +274,15 @@
                 'Note that nextDecision supports splits, which means that the workflow can split to more than one state.' +
                 'In that case, each split is unique from a perspective of error and rollback',
 
-                splitMode: 'Split mode (if and) when flow splits.  If set to \'copy\' then the underlying domain document ' +
+                splitMode: 'Split mode (if and) when flow splits.  If set to \'clone\' then the underlying domain document ' +
                 'within the JaskerInstnace, if provided is copied.  If missing or set to \'reference\' then the underlying ' +
                 'domain document is shared.  Since this can be set at each state, different splitModes can be used ' +
                 'depending on the type of flows.  \\r\\n' +
                 'For example, if the split is permanent (never re-merged, it may ' +
                 'represent a flow that goes to different business units or systems.  In that case a splitMode of ' +
-                '\'copy\' is appropriate.  On the other hand, if changes are being made in parallel, but the changes' +
-                'should be made to the latest version, then a splitMode of \'reference\' is appropriate',
-
-
+                '\'clone\' is appropriate.  On the other hand, if changes are being made in parallel, but the changes' +
+                'should be made to the latest version, then a splitMode of \'reference\' is appropriate\\r\\n' +
+                'lodash.cloneDeep is used for the cloning process - the document must be compatible with that method.',
 
                 entryTasks: {
                     entryTaskExample1: {

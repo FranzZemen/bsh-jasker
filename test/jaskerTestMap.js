@@ -7,12 +7,14 @@
     module.exports = {
         inline: {
             name: 'test',
+            docKeyField : 'name',
             states: {
                 stateTest1: {
                     next: 'stateTest2'
                 },
                 stateTest2: {
-                    next: ['stateTest3','stateTest4']
+                    next: ['stateTest3','stateTest4'],
+                    splitMode: 'clone'
                 },
                 stateTest3: {
                 },
