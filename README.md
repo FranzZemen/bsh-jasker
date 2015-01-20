@@ -85,8 +85,11 @@ Where:
  In all cases specification for these injections can be included by:
 
   - Providing the actual class constructor for inline configurations
+
   - Providing the module name for npm installed constructors
+
   - Providing the module name and NODE_PATH environment variable for non-npm installed constructors
+
   - Providing the relative path to the JaskerMap module (which most likely is sitting in node_modules/bsh-jasker/core)
 
  In the last three cases, JaskerMap will 'require' the constructor.  Thus, that operation should result in the constructor (require('SomeConstructor') = SomeConstructor
@@ -109,58 +112,73 @@ Where:
 
 ### JaskerMap Class API
 
- An instance of JaskerMap is a controller for a particular state configuration.   It is the core workhorse that calculates next states, rollbacks etc.
+   - JaskerMap is a controller for a particular state configuration.   It is the core workhorse that calculates next states, rollbacks etc.
 
- Jasker implementations may have one ore more JaskerMap.  They may have one or more JaskerMap instances of the same flow although there are consequences to that.
+   - Jasker implementations may have one ore more JaskerMap.  They may have one or more JaskerMap instances of the same flow although there are consequences to that.
 
 ##### JaskerMap(bunyanStreams)
 
- Constructor
+  - Constructor
 
- Parameters:
+  - Parameters:
 
-  - **bunyanStreams**:  Optional.  The bunyan streams configuration for Jasker. If none is provided, uses stdout with level info.
+        bunyanStreams  Object, Optional.  The bunyan streams configuration for Jasker. If none is provided, uses stdout with level info
 
-##### Munction name
+##### name
 
- Priviledged method
+  - Priviledged method:  Accessor returning the name of the underlying state engine configuration.
 
- Accessor returning the name of the underlying state engine configuration.
-
- Returns String
+  - Returns String
 
 ### JaskerInstance Class API
 
- An instance of JaskerInstance is a controller for a particular instance of the state configuration, and the main gateway to Jasker for public usage.
+  -JaskerInstance is a controller for a particular instance of the state configuration, and the main gateway to Jasker for public usage.
 
-#### Constructor JaskerInstance(jaskerMap, document, start)
+#### JaskerInstance(jaskerMap, document, start)
 
- Constructor
+  - Constructor
 
- Parameters:
+  - Parameters:
 
-  - **jaskerMap**:  Required.  An instance of JaskerMap.
-  - **document**:  Optional.  A domain object that travels with the state flow.  The document can be as simple or as complex as desired, but it must be streamable as JSON.  While its optional, it is passed to Jasker... class implementationss.  These implementations can of course obtain domain objects themselves.  At opposite ends of the spectrum, a document (if provided) could represent everything about a domain, or just an identifier.
-  - **start**:  Optional.  The state within JaskerMap that represents the starting state.  If none is provided, the first state in the configuration is used.  Note that if start is provided and no document, then the value for document should be 'undefined'.
+         jaskerMap:  Required.  An instance of JaskerMap.
 
-#### Method document
+         document:  Optional.  A domain object that travels with the state flow.  The document can be as simple or as complex as desired, but it must be streamable as JSON.  While its optional, it is passed to Jasker... class implementationss.  These implementations can of course obtain domain objects themselves.  At opposite ends of the spectrum, a document (if provided) could represent everything about a domain, or just an identifier.
 
- Priviledged method
+         start:  Optional.  The state within JaskerMap that represents the starting state.  If none is provided, the first state in the configuration is used.  Note that if start is provided and no document, then the value for document should be 'undefined'.
 
- Accessor returning the domain document
+#### document
 
- Returns Object
+  - Priviledged method:  Accessor returning the domain document
 
-#### Method next
+  - Returns Object
 
- Priviledged method
+#### next
 
- Invoke the transition(s) to the next state for this instance.  The result, including what functional operations and ending states
- are entirely dependent on the JaskerMap configuration.
+  - Priviledged method: Invoke the transition(s) to the next state for this instance.  The result, including what functional operations and ending states are entirely dependent on the JaskerMap configuration.
 
- Note that a rollback was necessary, or if the state is terminal, the instance state will remain the same.
+  Note that a rollback was necessary, or if the state is terminal, the instance state will remain the same.
 
- Returns Promise - success value is an Array of JaskerInstance, each set to the resulting states.  If no splits are configured, the array will be of length 1.  The err value is of JavaScript class Error
+  - Returns Promise - success value is an Array of JaskerInstance, each set to the resulting states.  If no splits are configured, the array will be of length 1.  The err value is of JavaScript class Error
 
+### JaskerNextDecision Class API
 
-### JaskerNextDecision
+  - JaskerNextDecision determines the next state(s) at a given state.  The Jasker client needs to subclass from JaskerNextDecision
+
+#### JaskerNextDecision
+
+  - Constructor
+
+#### next(document, state, stateData)
+
+  - Public method:  Given a document, the current state and the optional stateData, determine the next state(s).  This method will
+  be called by Jasker's core and is supplied by the Jasker client.
+
+  - Parameters:
+
+        document: (Object) The document provided to the JaskerInstance, or undefined if none was provided
+
+        state:  (String) The current state of the underlying JaskerMap
+
+        stateData: (Object) The data configured on the state, or undefined if none was configured
+
+  - Returns (Array of String) State names that represent the next state in the JaskerMap.  This is supplied by the client implementation.
