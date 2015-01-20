@@ -17,6 +17,13 @@
     var ExitTask = require('./ExitTask');
 
     var log;
+
+    /**
+     * JaskerMap
+     * The Jasker controller for a given state engine configuration
+     * @param bunyanStreams Optional configuration for Jasker's bunyan logging system.  Otherwise goes to con
+     * @constructor
+     */
     function JaskerMap(bunyanStreams) {
         if (bunyanStreams) {
             log = bunyan.createLogger({name: 'JaskerMap', streams : bunyanStreams});
@@ -27,9 +34,19 @@
         var states = [];
         var instanceNonPersisted = true;
 
+        /**
+         * priviledged function bunyanStreams (intended for core)
+         * Accessor returning the bunyanStreams configuration that was passed into the constructor
+         * @returns bunyanStreams (Object)
+         */
         this.bunyanStreams = function() {
             return bunyanStreams;
         };
+        /**
+         * priviledged function name (Intended for core & public)
+         * Accessor returning the name of the underlying state engine configuration.
+         * @returns name (String)
+         */
         this.name = function () {
             return jaskerMapConfig.name;
         };
@@ -253,6 +270,8 @@
 
                 data: 'Object, optional: arbitrary static JSON contents that is provided to custome BSHLogic ' +
                 'implementations when operating on this state',
+
+                cron : 'Scheduled task ',
 
                 done : {
                     donePeriod : 'number, optiona: milliseconds between which to check the doneDecision',

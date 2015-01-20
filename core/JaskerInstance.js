@@ -25,7 +25,7 @@
      * @param sequence
      * @constructor
      */
-    function JaskerInstance(jaskerMap, start, document, ref, sequence) {
+    function JaskerInstance(jaskerMap, document, start,  ref, sequence) {
         if (jaskerMap.bunyanStreams()) {
             log = bunyan.createLogger({name: 'JaskerInstance', streams : jaskerMap.bunyanStreams()});
         } else {
