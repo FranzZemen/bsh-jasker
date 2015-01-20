@@ -103,7 +103,7 @@
                 if (state.nextDecision) {
                     var nextDecisionImpl;
                     if (typeof state.nextDecision === 'function') {
-                        nextDecisionImpl = new (state.nextDecision());
+                        nextDecisionImpl = new state.nextDecision();
                     } else {
                         var NextDecisionImpl = require (state.nextDecision);
                         nextDecisionImpl = new NextDecisionImpl();
