@@ -1,6 +1,6 @@
 {
   "name": "bsh-jasker",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "A state process framework",
   "main": "core/index.js",
   "directories": {
