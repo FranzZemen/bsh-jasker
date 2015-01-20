@@ -101,7 +101,15 @@
                     nextStates = state.next;
                 }
                 if (state.nextDecision) {
-                    nextStates.concat(state.nextDecision());
+                    var nextDecisionImpl;
+                    if (typeof state.nextDecision === 'function') {
+                        nextDecisionImpl = new (state.nextDecision());
+                    } else {
+                        var NextDecisionImpl = require (state.nextDecision);
+                        nextDecisionImpl = new NextDecisionImpl();
+                    }
+                    debugJaskerInstance(self,jaskerInstance,'Calling JaskerNextDecision' + state.nextDecision);
+                    nextStates = nextStates.concat(nextDecisionImpl.next(jaskerInstance.document(), jaskerInstance.current(),state.data));
                 }
                 if (nextStates.length > 1) {
                     debugJaskerInstance(self, jaskerInstance, 'More than one next state found, splits will be performed', nextStates);
@@ -111,9 +119,12 @@
                         instance.newState(nextStates[ndx]);
                     });
                     deferred.resolve(jaskerInstances);
-                } else if (nextStates.length == 1) {
+                } else if (nextStates.length === 1) {
                     debugJaskerInstance(self, jaskerInstance, 'Setting next state', nextStates);
                     jaskerInstance.newState(nextStates[0]);
+                    deferred.resolve(jaskerInstance);
+                } else  {
+                    debugJaskerInstance(self, jaskerInstance, 'No next state, terminal', nextStates);
                     deferred.resolve(jaskerInstance);
                 }
                 // TODO: Execute exitTasks from current state
@@ -210,6 +221,7 @@
                 err.validationErrors.push('No states defined under states');
             }
             if (err.validationErrors.length > 0) {
+                log.error(err);
                 return err;
             }
 
@@ -228,8 +240,15 @@
             function validateClassDef(classDef, logMsg, logClassMsg, baseClass, err) {
                 var instance;
                 if (classDef) {
+                    log.debug('classDef: ' + classDef)
                     if (typeof classDef === 'string') {
-                        var classDefClass = require(classDef);
+                        var classDefClass;
+                        try {
+                            classDefClass = require(classDef);
+                        } catch (reqErr) {
+                            log.error(reqErr,'reqErr: ');
+                            err.validationErrors.push(logMsg + ' require cannot load module for ' + logClassMsg + ': ' + classDef);
+                        }
                         if (!classDefClass) {
                             err.validationErrors.push(logMsg + ' constructor for ' + logClassMsg + ' not found by require: ' + classDef);
                         } else {

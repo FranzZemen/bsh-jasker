@@ -97,7 +97,7 @@
                     doc = _.cloneDeep(document);
                     doc.cloned = true;
                 }
-                instances[i] = new JaskerInstance(jaskerMap, self.current(), doc, self.ref(),instanceData.sequence + ':s' + i);
+                instances[i] = new JaskerInstance(jaskerMap, doc, self.current(), self.ref(),instanceData.sequence + ':s' + i);
             }
             return instances;
         };

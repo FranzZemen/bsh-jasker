@@ -162,7 +162,7 @@ Where:
 
 ### JaskerNextDecision Class API
 
-  - JaskerNextDecision determines the next state(s) at a given state.  The Jasker client needs to subclass from JaskerNextDecision
+  - JaskerNextDecision determines the next state(s) at a given state.  The Jasker client needs to subclass from JaskerNextDecision.  Currently it must execute synchronously.
 
 #### JaskerNextDecision
 

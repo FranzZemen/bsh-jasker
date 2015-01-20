@@ -17,9 +17,12 @@
                     splitMode: 'clone'
                 },
                 stateTest3: {
+                    nextDecision: '../test/JaskerNextDecisionTest'
                 },
                 stateTest4: {
                     next: 'stateTest1'
+                },
+                stateTest5: {
                 }
             }
         }
