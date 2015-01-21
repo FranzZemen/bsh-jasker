@@ -1,9 +1,12 @@
 ## Important Note
 
 Even as I publish working versions, please note that this project is in flux and will grow day by day.  At this time
-patch version increases break semver rules because I'm adding functionality.  Minor versions would imply that the version
-breaks prior versions.  (semver rules say that bug fixes should increment patch version, non-breaking changes minor versions
-and breaking changes major versions).  I'll remove this message once the code drops become less frequent.
+a patch version means added functonality that does not break the minor version.  Minor version means a break in past minor
+version functonality.  (semver rules say that bug fixes should increment patch version, non-breaking changes minor versions
+and breaking changes major versions).  I'm doing this because I don't feel like incrementing minor versions frequently for
+small daily functionality improvements.
+
+I'll remove this message once the code drops become less frequent and then follow semver rules.
 
 ## Installation
 
@@ -47,7 +50,7 @@ and breaking changes major versions).  I'll remove this message once the code dr
     {
         name: Required Unique String
         docKeyField : Optional String
-        promiseTimeout : Optional number
+        promisesTimeout : Optional number
         states: {
             stateExample1: {
                 code: Optional Alphanumeric
@@ -68,7 +71,7 @@ Where:
 
   Even if a document is provided, this is optional.  The JaskerInstance will append the document  key value to its internal instance refernece.  It greatly assists troubleshooting, maintenance, data mining etc.,
 
-  - **promiseTimeout**:  Optional Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose methods take a promise.  For example a JaskerNextDecision next method requires as a parameter  a promise that it must then return.  That promise, provided by Jasker, has a timeout which will reject the promise if the promise is not otherwise resolved or rejected prior.  The value of this timeout is this setting.
+  - **promisesTimeout**:  Optional Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose methods take a promise.  For example a JaskerNextDecision next method requires as a parameter  a promise that it must then return.  That promise, provided by Jasker, has a timeout which will reject the promise if the promise is not otherwise resolved or rejected prior.  The value of this timeout is this setting.
 
   - **code**: Optional Alphanumeric: an optional arbitrary alpha-numeric value
 
