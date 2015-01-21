@@ -80,7 +80,9 @@ Where:
 
 ## Injection
 
- A number of derived classes in the API can be injected in the state engine configuration to provide custom behavior.  These are typically subclasses of a class beginning with Jasker...
+<p>A number of derived classes in the API can be injected in the state engine configuration to provide custom behavior.
+These are  subclasses of a class beginning with 'Jasker' provided by YOU (the api client).  Performance is
+highly correlated to the classes you provide since that's where the real domain work happens, so take care.</p>
 
  In all cases specification for these injections can be included by:
 
@@ -92,11 +94,21 @@ Where:
 
   - Providing the relative path to the JaskerMap module (which most likely is sitting in node_modules/bsh-jasker/core)
 
- In the last three cases, JaskerMap will 'require' the constructor.  Thus, that operation should result in the constructor (require('SomeConstructor') = SomeConstructor
+<p>In the last three cases, JaskerMap will 'require' the constructor.  Thus, that operation should result in the
+constructor (require('SomeConstructor') = SomeConstructor<p>
+
+<p>The classes are documented below.  In many cases, the derived class method  implementation signature specify include
+a promise that must be returend.  The reader will note that the promise to be returned and resolved or rejected by the
+client is provided TO the method to be mplemented.  Why not let the implementor use their own promise library?  Two
+reasons.  1) With this approach Jasker can implement a promise that includes a  timeout setting (see the configuration),
+and 2) Jasker can internally use a rich api.  As a matter of disclosure, Jasker's promise api is currently implemented
+with node-promise).
+
 
 ## API
 
- The API documents what is intended for public consumption.  It does not document public methods that are intended for and used by the core but for which public usage could result in unintended consequences.
+<p>The API documents what is intended for public consumption.  It does not document public methods that are intended
+for and used by the core but for which public usage could result in unintended consequences.</p>
 
 ### Types of methods and properties
 
@@ -122,7 +134,8 @@ Where:
 
   - Parameters:
 
-        bunyanStreams  Object, Optional.  The bunyan streams configuration for Jasker. If none is provided, uses stdout with level info
+        bunyanStreams  Object, Optional.  The bunyan streams configuration for Jasker. If none is provided,
+                       uses stdout with level info
 
 ##### name
 
@@ -130,11 +143,11 @@ Where:
 
   - Returns String
 
-### JaskerInstance Class API
+## JaskerInstance Class API
 
   -JaskerInstance is a controller for a particular instance of the state configuration, and the main gateway to Jasker for public usage.
 
-#### JaskerInstance(jaskerMap, document, start)
+### JaskerInstance(jaskerMap, document, start)
 
   - Constructor
 
@@ -142,17 +155,20 @@ Where:
 
          jaskerMap:  Required.  An instance of JaskerMap.
 
-         document:  Optional.  A domain object that travels with the state flow.  The document can be as simple or as complex as desired, but it must be streamable as JSON.  While its optional, it is passed to Jasker... class implementationss.  These implementations can of course obtain domain objects themselves.  At opposite ends of the spectrum, a document (if provided) could represent everything about a domain, or just an identifier.
+         document:  Optional.  A domain object that travels with the state flow.  The document can be as simple
+                    or as complex as desired, but it must be streamable as JSON.  While its optional, it is passed to Jasker... class implementationss.  These implementations can of course obtain domain objects themselves.  At opposite ends of the spectrum, a document (if provided) could represent everything about a domain, or just an identifier.
 
-         start:  Optional.  The state within JaskerMap that represents the starting state.  If none is provided, the first state in the configuration is used.  Note that if start is provided and no document, then the value for document should be 'undefined'.
+         start:  Optional.  The state within JaskerMap that represents the starting state.  If none is
+                 provided, the first state in the configuration is used.  Note that if start is provided and no
+                 document, then the value for document should be 'undefined'.
 
-#### document
+### document()
 
   - Priviledged method:  Accessor returning the domain document
 
   - Returns Object
 
-#### next
+### next()
 
   - Priviledged method: Invoke the transition(s) to the next state for this instance.  The result, including what functional operations and ending states are entirely dependent on the JaskerMap configuration.
 
@@ -160,20 +176,24 @@ Where:
 
   - Returns Promise - success value is an Array of JaskerInstance, each set to the resulting states.  If no splits are configured, the array will be of length 1.  The err value is of JavaScript class Error
 
-### JaskerNextDecision Class API
+## JaskerNextDecision Class API
 
   - JaskerNextDecision determines the next state(s) at a given state.  The Jasker client needs to subclass from JaskerNextDecision.  Currently it must execute synchronously.
 
-#### JaskerNextDecision
+### JaskerNextDecision()
 
   - Constructor
 
-#### next(document, state, stateData)
+### next(promise document, state, stateData)
 
   - Public method:  Given a document, the current state and the optional stateData, determine the next state(s).  This method will
-  be called by Jasker's core and is supplied by the Jasker client.
+  be called by Jasker's core and is supplied by the Jasker client.  It may be asynchronous.
 
   - Parameters:
+
+        promise: (Object) A promise that the implementor then returns.  The parameter value of the success function
+                 (resolved value)  must be an Array of strings representing the next states.  The error parameter value
+                 of the error function should be of type Error.
 
         document: (Object) The document provided to the JaskerInstance, or undefined if none was provided
 
@@ -181,4 +201,6 @@ Where:
 
         stateData: (Object) The data configured on the state, or undefined if none was configured
 
-  - Returns (Array of String) State names that represent the next state in the JaskerMap.  This is supplied by the client implementation.
+  - Returns A promise whose success function parameter should be an Array of String that represent the next state names in the JaskerMap.
+
+  The promise returned <strong>MUST</strong> be the promised passed in.

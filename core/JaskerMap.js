@@ -13,8 +13,8 @@
     var bunyan = require('bunyan');
     var _ = require('lodash');
     var JaskerNextDecision = require('./JaskerNextDecision');
-    var EntryTask = require('./EntryTask');
-    var ExitTask = require('./ExitTask');
+    var EntryTask = require('./JaskerEntryTask');
+    var ExitTask = require('./JaskerExitTask');
 
     var log;
 
@@ -212,8 +212,8 @@
                     }
                 }
                 validateClassDef(state.nextDecision, key + '.nextDecision', 'JaskerNextDecision', JaskerNextDecision, err);
-                validateTasks(state.entryTasks, state + '.entryTasks', 'EntryTask', EntryTask, err);
-                validateTasks(state.exitTasks, state + '.exitTasks', 'ExitTask', ExitTask, err);
+                validateTasks(state.entryTasks, state + '.entryTasks', 'EntryTask', JaskerEntryTask, err);
+                validateTasks(state.exitTasks, state + '.exitTasks', 'ExitTask', JaskerExitTask, err);
                 // Add this state to the states array
                 states.push(key);
             });
@@ -283,6 +283,10 @@
         docKeyField : 'String, optional: if a document is provided, a field that represents its key.  Even if a' +
         'document is provided, this is optiona.  The JaskerInstance will append the document key value to its' +
         'internal instance referece.  It greatly assists troubleshooting, maintenance, data mining etc.',
+        promiseTimeout : 'Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose' +
+        'methods take a promise.  For example a JaskerNextDecision next method requires as a parameter  a promise' +
+        'that it must then return.  That promise, provided by Jasker, has a timeout which will reject the promise if' +
+        'the promise is not otherwise resolved or rejected prior.  The value of this timeout is this setting.',
         states: {
             stateExample1: {
                 code: 'Alphanumeric, optional: an optional arbitrary alpha-numeric value',

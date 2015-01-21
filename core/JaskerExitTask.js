@@ -4,12 +4,12 @@
 
 (function () {
     'use strict';
-    var Task = require('./Task');
+    var Task = require('./JaskerTask');
 
     function ExitTask () {
-        Task.call(this);
+        JaskerTask.call(this);
     }
-    ExitTask.prototype = Object.create(Task.prototype);
+    ExitTask.prototype = Object.create(JaskerTask.prototype);
     ExitTask.prototype.constructor = ExitTask;
 
     module.exports = ExitTask;
