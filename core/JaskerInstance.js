@@ -40,10 +40,10 @@
             throw err;
         }
         if (start === undefined) {
-            log.info('startState not defined, will use the first state in JaskerMap ' + jaskerMap.name() + ' which is: ' + jaskerMap.firstState());
-            start = jaskerMap.firstState();
+            log.info('startState not defined, will use the first state in JaskerMap ' + jaskerMap.name() + ' which is: ' + jaskerMap._firstState());
+            start = jaskerMap._firstState();
         } else {
-            if (!jaskerMap.validState(start)) {
+            if (!jaskerMap._validState(start)) {
                 err = new Error('Invalid start state (' + start + ') provided for JaskerMap ' + jaskerMap.name);
             }
         }
@@ -56,8 +56,8 @@
             instanceData.sequence = sequence;
         } else {
             instanceData.ref = '' + Date.now();
-            if (document && jaskerMap.docKeyField()) {
-                instanceData.ref += ':doc.' + jaskerMap.docKeyField() + '(' + document[jaskerMap.docKeyField()] + ')';
+            if (document && jaskerMap._docKeyField()) {
+                instanceData.ref += ':doc.' + jaskerMap._docKeyField() + '(' + document[jaskerMap._docKeyField()] + ')';
             }
             instanceData.ref += ':' + jaskerMap.name() + ':' + start;
             instanceData.sequence = 'O';

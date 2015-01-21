@@ -72,13 +72,13 @@
             jaskerMap.name().should.equal('test');
         });
         it('should return the first state=stateTest1', function () {
-            jaskerMap.firstState().should.equal('stateTest1');
+            jaskerMap._firstState().should.equal('stateTest1');
         });
         it('should say state=hello is not a valid state', function () {
-            jaskerMap.validState('hello').should.not.be.ok;
+            jaskerMap._validState('hello').should.not.be.ok;
         });
         it('should say state=stateTest2 is a valid state', function () {
-            jaskerMap.validState('stateTest2').should.be.ok;
+            jaskerMap._validState('stateTest2').should.be.ok;
         });
     });
 })();

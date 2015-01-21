@@ -4,7 +4,7 @@
 
 (function () {
     'use strict';
-    var Task = require('./JaskerTask');
+    var JaskerTask = require('./JaskerTask');
 
     function JaskerEntryTask () {
         JaskerTask.call(this);

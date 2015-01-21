@@ -15,7 +15,7 @@
 
     describe('JaskerInstance Tests', function () {
         beforeEach(function (done) {
-            jaskerMap = new JaskerMap([{stream: process.stdout, level: 'info'}]);
+            jaskerMap = new JaskerMap([{stream: process.stdout, level: 'debug'}]);
             jaskerMap.initialize(require('./jaskerTestMap'))
                 .then(function () {
                     jaskerInstance = new JaskerInstance(jaskerMap, document, 'stateTest1');

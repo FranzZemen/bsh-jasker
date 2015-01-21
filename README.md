@@ -1,3 +1,10 @@
+## Important Note
+
+Even as I publish working versions, please note that this project is in flux and will grow day by day.  At this time
+patch version increases break semver rules because I'm adding functionality.  Minor versions would imply that the version
+breaks prior versions.  (semver rules say that bug fixes should increment patch version, non-breaking changes minor versions
+and breaking changes major versions).  I'll remove this message once the code drops become less frequent.
+
 ## Installation
 
     npm install bsh-jasker
@@ -12,6 +19,11 @@
 
 
 ## Current Functionality:
+
+### Since v.0.1.1
+
+  - Classes implementing Jasker APIs (currently, such as JaskerNextDecision) now accept a promise as a first parameter to their functional methods.  That promise is passed from Jasker, and must be returned by those methods.  In this manner Jasker controls the promise implementation api; also this allows Jasker to ensure that the promise includes a timeout .  See the changes to the config object and the addition of the  promiseTimeout option.
+
 
 ### Since v0.0.13
 
@@ -35,6 +47,7 @@
     {
         name: Required Unique String
         docKeyField : Optional String
+        promiseTimeout : Optional number
         states: {
             stateExample1: {
                 code: Optional Alphanumeric
@@ -54,6 +67,8 @@ Where:
   - **docKeyField**: Optional String: If a document is provided, this is a field that represents its key (and therefore document.key exists).
 
   Even if a document is provided, this is optional.  The JaskerInstance will append the document  key value to its internal instance refernece.  It greatly assists troubleshooting, maintenance, data mining etc.,
+
+  - **promiseTimeout**:  Optional Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose methods take a promise.  For example a JaskerNextDecision next method requires as a parameter  a promise that it must then return.  That promise, provided by Jasker, has a timeout which will reject the promise if the promise is not otherwise resolved or rejected prior.  The value of this timeout is this setting.
 
   - **code**: Optional Alphanumeric: an optional arbitrary alpha-numeric value
 
@@ -101,8 +116,11 @@ constructor (require('SomeConstructor') = SomeConstructor<p>
 a promise that must be returend.  The reader will note that the promise to be returned and resolved or rejected by the
 client is provided TO the method to be mplemented.  Why not let the implementor use their own promise library?  Two
 reasons.  1) With this approach Jasker can implement a promise that includes a  timeout setting (see the configuration),
-and 2) Jasker can internally use a rich api.  As a matter of disclosure, Jasker's promise api is currently implemented
-with node-promise).
+and 2) Jasker can internally use a rich api.  Jasker uses node-promise, which has an undocumented timeout feature (at least
+its not documented on npm).
+</p>
+
+
 
 
 ## API
@@ -184,14 +202,16 @@ for and used by the core but for which public usage could result in unintended c
 
   - Constructor
 
-### next(promise document, state, stateData)
+### next(document, state, stateData, promise)
 
   - Public method:  Given a document, the current state and the optional stateData, determine the next state(s).  This method will
   be called by Jasker's core and is supplied by the Jasker client.  It may be asynchronous.
 
   - Parameters:
 
-        promise: (Object) A promise that the implementor then returns.  The parameter value of the success function
+
+        promise: (Object) A promise that the implementor then returns and resolves or rejects as with normal promises.
+                 The parameter value of the success function
                  (resolved value)  must be an Array of strings representing the next states.  The error parameter value
                  of the error function should be of type Error.
 
@@ -201,6 +221,9 @@ for and used by the core but for which public usage could result in unintended c
 
         stateData: (Object) The data configured on the state, or undefined if none was configured
 
-  - Returns A promise whose success function parameter should be an Array of String that represent the next state names in the JaskerMap.
+
+
+  - Returns A promise whose success function parameter should be an Array of String that represent the next state names in the JaskerMap.  Therefore
+  the implementation must resolve to that Array (on success).
 
   The promise returned <strong>MUST</strong> be the promised passed in.
