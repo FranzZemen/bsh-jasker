@@ -8,6 +8,7 @@
         inline: {
             name: 'test',
             docKeyField : 'name',
+            promisesTimeout : 1000,
             states: {
                 stateTest1: {
                     next: 'stateTest2'

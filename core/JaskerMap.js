@@ -292,8 +292,11 @@
                 }
                 _debugJaskerInstance(self,jaskerInstance,'Calling JaskerNextDecision' + currentState.nextDecision);
 
-                var timedOutDeferred = defer();
-                timedOutDeferred.timeout(jaskerMapConfig.promisesTimeout ? promisesTimeout : defaultPromisesTimeout);
+
+                var timedOutDeferred = defer(canceller);
+                var timeoutObject = setTimeout(function () {
+                    timedOutDeferred.cancel();
+                }, jaskerMapConfig.promisesTimeout ? jaskerMapConfig.promisesTimeout : defaultPromisesTimeout);
 
                 // Note - we are NOT using the returned promise.  The contract SPECIFIES that the implementation
                 // use the passed in promise.  This is to protect the overall state engine and force a timeout in the
@@ -303,6 +306,9 @@
 
                 timedOutDeferred.promise.then(
                     function (implNextDecisions) {
+                        if (timeoutObject) {
+                            clearTimeout(timeoutObject);
+                        }
                         if (implNextDecisions instanceof Array) {
                             deferred.resolve(implNextDecisions);
                         } else {
@@ -312,6 +318,9 @@
                         }
                     },
                     function (err) {
+                        if (timeoutObject) {
+                            clearTimeout(timeoutObject);
+                        }
                         _logError(err);
                         deferred.reject(err);
                     }
@@ -331,6 +340,10 @@
             } else {
                 log.error({error: err}, "Error");
             }
+        }
+
+        function canceller () {
+            return new Error('Implementaton timed out.');
         }
     }
 

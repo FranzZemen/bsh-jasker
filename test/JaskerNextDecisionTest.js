@@ -16,7 +16,10 @@
     JaskerNextDecisionTest.prototype.constructor = JaskerNextDecisionTest;
 
     JaskerNextDecisionTest.prototype.next = function (document, state, stateData, promise) {
-        promise.resolve(['stateTest5']);
+        setTimeout(function () {
+            promise.resolve(['stateTest5']);
+        },500);
+
     };
 
     module.exports = JaskerNextDecisionTest;
