@@ -6,14 +6,10 @@
     'use strict';
     var name;
 
-    function Task (taskName) {
-        name = taskName;
+    function Task () {
 
-        this.name = function () {
-            return name;
-        };
     }
-    Task.prototype.perform = function (document) {
+    Task.prototype.perform = function (promise, document, state, stateData) {
         throw new Error('Subclass ' + this.name() + ' should implement this method');
     };
     Task.prototype.rollback = function () {

@@ -7,8 +7,8 @@
     var log = require('bunyan').createLogger({name: 'JaskerInstance.spec', level: 'info'}),
         when = require('node-promise').when,
         then = require('node-promise').then,
-        JaskerMap = require('../core/JaskerMap').JaskerMap,
-        JaskerInstance = require('../core/JaskerInstance'),
+        JaskerMap = require('../core/index').JaskerMap,
+        JaskerInstance = require('../core/index').JaskerInstance,
         jaskerMap,
         jaskerInstance,
         document = {name: 'Document'};

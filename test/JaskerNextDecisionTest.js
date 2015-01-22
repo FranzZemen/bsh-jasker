@@ -7,7 +7,7 @@
     var log = require('bunyan').createLogger({name: 'renameMe', level: 'debug'});
     var _ = require('lodash');
 
-    var JaskerNextDecision = require('../core/JaskerNextDecision');
+    var JaskerNextDecision = require('../core/index').JaskerNextDecision;
 
     function JaskerNextDecisionTest() {
         JaskerNextDecision.call(this);
@@ -15,7 +15,7 @@
     JaskerNextDecisionTest.prototype = Object.create(JaskerNextDecision.prototype);
     JaskerNextDecisionTest.prototype.constructor = JaskerNextDecisionTest;
 
-    JaskerNextDecisionTest.prototype.next = function (document, state, stateData, promise) {
+    JaskerNextDecisionTest.prototype.next = function (promise, document, state, stateData) {
         setTimeout(function () {
             promise.resolve(['stateTest5']);
         },500);

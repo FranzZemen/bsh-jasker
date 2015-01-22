@@ -13,6 +13,7 @@
     var when = require('node-promise').when;
     var bunyan = require('bunyan');
     var _ = require('lodash');
+    var unique = require('array-unique');
     var JaskerNextDecision = require('./JaskerNextDecision');
     var JaskerEntryTask = require('./JaskerEntryTask');
     var JaskerExitTask = require('./JaskerExitTask');
@@ -96,28 +97,37 @@
                 log.error(err);
                 deferred.reject(err);
             } else {
-                var state = _stateForName(jaskerInstance.current());
-                when(self._nextStates(state, jaskerInstance), function (nextStates) {
+                var fromState = _stateForName(jaskerInstance.current());
+                fromState.name = jaskerInstance.current();
+                return when(self._nextStates(fromState, jaskerInstance), function (nextStates) {
                     if (nextStates.length > 1) {
-                        _debugJaskerInstance(self, jaskerInstance, 'Resolving. More than one next state found, splits will be performed', nextStates);
                         // Split the jaskerInstance
-                        var jaskerInstances = jaskerInstance.split(nextStates.length, state.splitMode);
+                        var jaskerInstances = jaskerInstance.split(nextStates.length, fromState.splitMode);
                         jaskerInstances.forEach(function (instance, ndx) {
                             instance.newState(nextStates[ndx]);
                         });
-                        deferred.resolve(jaskerInstances);
+                        return jaskerInstances;
+                        //deferred.resolve(jaskerInstances);
                     } else if (nextStates.length === 1) {
                         _debugJaskerInstance(self, jaskerInstance, 'Resolving. Setting next state', nextStates);
-                        jaskerInstance.newState(nextStates[0]);
-                        deferred.resolve(jaskerInstance);
+                        var toState = _stateForName(nextStates[0]);
+                        toState.name = nextStates[0];
+                        return when(self._entryTasks(fromState, toState, jaskerInstance), function () {
+                            jaskerInstance.newState(nextStates[0]);
+                            return jaskerInstance;
+                        }, function (err) {
+                            return err;
+                        });
                     } else  {
                         _debugJaskerInstance(self, jaskerInstance, 'Resolving. No next state, terminal', nextStates);
-                        deferred.resolve(jaskerInstance);
+                        //deferred.resolve(jaskerInstance);
+                        return jaskerInstance;
                     }
                     // Potentially return when(....
                 }, function (err) {
                     // All called methods wrapping external implementations already log.
-                    deferred.reject(err);
+                    //deferred.reject(err);
+                    return err;
                 });
 
                 // TODO: Execute exitTasks from current state
@@ -126,7 +136,7 @@
                 // TODO: Execute linkage logic
                 // TODO: Execute state entry tasks
             }
-            return deferred.promise;
+            //return deferred.promise;
         };
 
         function _debugJaskerInstance(self,instance, message, object) {
@@ -221,15 +231,14 @@
                 return err;
             }
 
-            function _validateTasks(tasks, logArrayMsg, logTaskMsg, baseClass, err) {
+            function _validateTasks(tasks, logTaskEntryMsg, logTaskMsg, baseClass, err) {
                 if (tasks) {
-                    if (tasks.constructor !== Array) {
-                        err.validationErrors.puh(logArrayMsg + ' is not an array');
-                    } else {
-                        tasks.forEach(function (val, ndx) {
-                            _validateClassDef(val, logArrayMsg + '[' + ndx + ']', logTaskMsg, baseClass, err);
-                        });
-                    }
+                    _.forOwn(tasks,function (val, key) {
+                        _validateClassDef(val.task, logTaskEntryMsg + '.' + key, logTaskMsg, baseClass, err);
+                        if (val.optional && (val.optional !== true || val.optional !== false)) {
+                            err.validationErrors.pus(logTaskEntryMsg + '.optional is not true or false');
+                        }
+                    });
                 }
             }
 
@@ -302,15 +311,16 @@
                 // use the passed in promise.  This is to protect the overall state engine and force a timeout in the
                 // case where the implementation goes on forever (relatively, at least), and moreover, fails to use
                 // this promise.
-                nextDecisionImpl.next(jaskerInstance.document(), jaskerInstance.current(),currentState.data, timedOutDeferred);
+                nextDecisionImpl.next(timedOutDeferred, jaskerInstance.document(), jaskerInstance.current(),currentState.data);
 
                 timedOutDeferred.promise.then(
-                    function (implNextDecisions) {
+                    function (nextStatesFromDecision) {
                         if (timeoutObject) {
                             clearTimeout(timeoutObject);
                         }
-                        if (implNextDecisions instanceof Array) {
-                            deferred.resolve(implNextDecisions);
+                        if (nextStatesFromDecision instanceof Array) {
+                            nextStates = unique(nextStates.concat(nextStatesFromDecision));
+                            deferred.resolve(nextStates);
                         } else {
                             var err = new Error ('Success value from JaskerNextDecision sub-class is not resolving to an Array for method next');
                             _logError(err);
@@ -327,10 +337,70 @@
                 );
             } else {
                 // Since there is no nextDecision, we can immediately rsolve.
+                nextStates = unique(nextStates);
                 deferred.resolve(nextStates);
             }
             return deferred.promise;
-        }
+        };
+
+        this._entryTasks = function (fromState, toState, jaskerInstance) {
+            var self = this;
+
+            var configuredTasks = toState.entryTasks;
+            var namedTasks = [];
+            _.forOwn(configuredTasks, function(task,key) {
+                task.name = key;
+                namedTasks.push(task);
+            });
+            return self._task(namedTasks, 0, fromState, toState, jaskerInstance);
+        };
+
+        this._task = function(tasks, ndx, fromState, toState, jaskerInstance) {
+            var self = this;
+            if (ndx >= tasks.length) {
+                return 'Done';
+            } else {
+                var taskName = tasks[ndx].name;
+                var taskDef = tasks[ndx].task;
+                var optional = tasks[ndx].optiona;
+                var taskImpl;
+                if (typeof taskDef === 'function') {
+                    taskImpl = new taskDef();
+                } else {
+                    var TaskImpl = require (taskDef);
+                    taskImpl = new TaskImpl();
+                }
+                _debugJaskerInstance(self,jaskerInstance,'Invoking task ' + taskName + ' in going from state ' + fromState.name + ' to state ' + toState.name);
+
+                var timedOutDeferred = defer(canceller);
+                var timeoutObject = setTimeout(function () {
+                    timedOutDeferred.cancel();
+                }, jaskerMapConfig.promisesTimeout ? jaskerMapConfig.promisesTimeout : defaultPromisesTimeout);
+
+                // Note - we are NOT using the returned promise.  The contract SPECIFIES that the implementation
+                // use the passed in promise.  This is to protect the overall state engine and force a timeout in the
+                // case where the implementation goes on forever (relatively, at least), and moreover, fails to use
+                // this promise.
+                taskImpl.perform(timedOutDeferred, jaskerInstance.document(), toState.name, toState.data);
+
+                return when(timedOutDeferred.promise, function () {
+                        if (timeoutObject) {
+                            clearTimeout(timeoutObject);
+                        }
+                        return self._task(tasks, ndx+1, fromState, toState, jaskerInstance);
+                    },
+                    function (err) {
+                        if (timeoutObject) {
+                            clearTimeout(timeoutObject);
+                        }
+                        _logError(err);
+                        return err;
+                        //deferred.reject(err);
+                    }
+                );
+            }
+        };
+
 
         function _logError(err) {
             if (err instanceof Error) {

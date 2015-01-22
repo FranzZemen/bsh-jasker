@@ -23,6 +23,11 @@ I'll remove this message once the code drops become less frequent and then follo
 
 ## Current Functionality:
 
+### Since v.0.1.4
+
+  - State entry tasks implemented.  You can now define entry tasks that occur when the state is entered.  However, rollback upon failure is not yet available.  You'll need to handle that yourself.  See the JaskerEntryTask api and the entryTasks configuration documentation.
+
+
 ### Since v.0.1.1
 
   - Classes implementing Jasker APIs (currently, such as JaskerNextDecision) now accept a promise as a first parameter to their functional methods.  That promise is passed from Jasker, and must be returned by those methods.  In this manner Jasker controls the promise implementation api; also this allows Jasker to ensure that the promise includes a timeout .  See the changes to the config object and the addition of the  promiseTimeout option.
@@ -58,6 +63,12 @@ I'll remove this message once the code drops become less frequent and then follo
                 next: Optional String or Array of Strings
                 nextDecision: Optional subclass of JaskerNextDecision
                 splitMode: Optional String of value 'clone' or 'reference'
+                entryTasks: {
+                    entryTask1: {
+                        task: Optional subclass of JaskerEntryTask
+                        optional:  Optional boolean.
+                    }
+                }
             },
             stateExample2 : {}
         }
@@ -95,6 +106,9 @@ Where:
 
   lodash.cloneDeep is used for the cloning process - the document must be compatible with that method,
 
+  - **task**: Optional subclass of the specified type or requires path (see Injection section).  The subclass invoked to do provider specified tasks
+
+  - **optional**: Optional boolean, indicating that the success of the associated task is optional.  If missing Jasker assumes the value is false.
 
 ## Injection
 
@@ -199,7 +213,7 @@ for and used by the core but for which public usage could result in unintended c
 
 ## JaskerNextDecision Class API
 
-  - JaskerNextDecision determines the next state(s) at a given state.  The Jasker client needs to subclass from JaskerNextDecision.  Currently it must execute synchronously.
+  - JaskerNextDecision determines the next state(s) at a given state.  The Jasker client needs to subclass from JaskerNextDecision.
 
 ### JaskerNextDecision()
 
@@ -214,9 +228,8 @@ for and used by the core but for which public usage could result in unintended c
 
 
         promise: (Object) A promise that the implementor then returns and resolves or rejects as with normal promises.
-                 The parameter value of the success function
-                 (resolved value)  must be an Array of strings representing the next states.  The error parameter value
-                 of the error function should be of type Error.
+                 The parameter value of the success function  (resolved value)  must be an Array of strings
+                 representing the next states.  The error parameter value of the error function should be of type Error.
 
         document: (Object) The document provided to the JaskerInstance, or undefined if none was provided
 
@@ -226,7 +239,60 @@ for and used by the core but for which public usage could result in unintended c
 
 
 
-  - Returns A promise whose success function parameter should be an Array of String that represent the next state names in the JaskerMap.  Therefore
+  - Returns A promise whose success value should be an Array of String that represent the next state names in the JaskerMap.  Therefore
   the implementation must resolve to that Array (on success).
+
+  The promise returned <strong>MUST</strong> be the promised passed in.
+
+## JaskerEntryTask Class API
+
+  - JaskerEntryTask performs a client provided task upon entering a state.  The Jasker client needs to subclass from JaskerEntryTask.
+
+### JaskerEntryTask()
+
+  - Constructor
+
+### perform(document, state, stateData, promise)
+
+  - Public method:  Given a document, the current state and the optional stateData, determine the next state(s).  This method will
+  be called by Jasker's core and is supplied by the Jasker client.  It may be asynchronous.
+
+  - Parameters:
+
+
+        promise: (Object) A promise that the implementor then returns and resolves or rejects as with normal promises.
+                 The parameter value of the success function (resolved value)  must be an Array of strings representing
+                 the next states.  The error parameter value of the error function should be of type Error.
+
+        document: (Object) The document provided to the JaskerInstance, or undefined if none was provided
+
+        state:  (String) The current state of the underlying JaskerMap
+
+        stateData: (Object) The data configured on the state, or undefined if none was configured
+
+
+
+  - Returns A promise whose success value is unimportant.
+
+  The promise returned <strong>MUST</strong> be the promised passed in.
+
+### rollback(document, state, stateData, promise)
+
+  - Public method:  Given a document, the current state and the optional stateData, rollback work done by perform.
+
+  - Parameters:
+
+
+        promise: (Object) A promise that the implementor then returns and resolves or rejects as with normal promises.
+                 The parameter value of the success function (resolved value)  must be an Array of strings representing
+                 the next states.  The error parameter value of the error function should be of type Error.
+
+        document: (Object) The document provided to the JaskerInstance, or undefined if none was provided
+
+        state:  (String) The current state of the underlying JaskerMap
+
+        stateData: (Object) The data configured on the state, or undefined if none was configured
+
+  - Returns A promise whose success value is unimportant.
 
   The promise returned <strong>MUST</strong> be the promised passed in.

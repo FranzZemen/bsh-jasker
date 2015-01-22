@@ -3,6 +3,7 @@
  */
 (function () {
     'use strict';
+    var JaskerEntrySample2 = require('./JaskerEntryTaskSample2');
 
     module.exports = {
         inline: {
@@ -11,11 +12,19 @@
             promisesTimeout : 1000,
             states: {
                 stateTest1: {
-                    next: 'stateTest2'
+                    next: 'stateTest2',
                 },
                 stateTest2: {
                     next: ['stateTest3','stateTest4'],
-                    splitMode: 'clone'
+                    splitMode: 'clone',
+                    entryTasks: {
+                        jaskerEntryTaskSample1 : {
+                            task: '../test/JaskerEntryTaskSample1'
+                        },
+                        jaskerEntryTaskSample2 : {
+                            task: JaskerEntrySample2
+                        }
+                    }
                 },
                 stateTest3: {
                     nextDecision: '../test/JaskerNextDecisionTest'

@@ -19,9 +19,9 @@
 
     describe('JaskMap Initialization Tests', function () {
         it('should load the modules', function () {
-            JaskerMapConfiguration = require('../core/JaskerMap').JaskerMapConfiguration;
-            JaskerMap = require('../core/JaskerMap').JaskerMap;
-            JaskerNextDecision = require('../core/JaskerNextDecision');
+            JaskerMapConfiguration = require('../core/index').JaskerMapConfiguration;
+            JaskerMap = require('../core/index').JaskerMap;
+            JaskerNextDecision = require('../core/index').JaskerNextDecision;
 
             JaskerMapConfiguration.should.be.ok;
             JaskerMap.should.be.ok;
