@@ -236,7 +236,7 @@
                     _.forOwn(tasks,function (val, key) {
                         _validateClassDef(val.task, logTaskEntryMsg + '.' + key, logTaskMsg, baseClass, err);
                         if (val.optional && (val.optional !== true || val.optional !== false)) {
-                            err.validationErrors.pus(logTaskEntryMsg + '.optional is not true or false');
+                            err.validationErrors.push(logTaskEntryMsg + '.optional is not true or false');
                         }
                     });
                 }
