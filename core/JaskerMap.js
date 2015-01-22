@@ -227,7 +227,7 @@
                 err.validationErrors.push('No states defined under states');
             }
             if (err.validationErrors.length > 0) {
-                log.error(err);
+                log.error({err:err},'Validation Errors');
                 return err;
             }
 
@@ -235,7 +235,7 @@
                 if (tasks) {
                     _.forOwn(tasks,function (val, key) {
                         _validateClassDef(val.task, logTaskEntryMsg + '.' + key, logTaskMsg, baseClass, err);
-                        if (val.optional && (val.optional !== true || val.optional !== false)) {
+                        if (val.optional !== undefined && (typeof val.optional !== 'boolean')) {
                             err.validationErrors.push(logTaskEntryMsg + '.optional is not true or false');
                         }
                     });
