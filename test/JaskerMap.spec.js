@@ -48,7 +48,6 @@
         it('should succeed to initialize the inline configuration (vary inline configuration to do failure tests)', function (done) {
             initMap.initialize(inlineDefinition)
                 .then(function success(val) {
-                    (val).should.be.ok;
                     done();
                 }, function fail(err) {
                     log.debug({validationErrors: err.validationErrors}, 'Validation Errors');

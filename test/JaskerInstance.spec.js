@@ -21,8 +21,9 @@
                     jaskerInstance = new JaskerInstance(jaskerMap, document, 'stateTest1');
                     done();
                 }, function (err) {
-                    log.error(err);
-                    done(err);
+                    setTimeout(function() {
+                        done(err);
+                    }, 500);
                 });
         });
 

@@ -10,4 +10,5 @@
     module.exports.JaskerInstance = require('./JaskerInstance');
     module.exports.JaskerNextDecision = require('./JaskerNextDecision');
     module.exports.JaskerEntryTask = require('./JaskerEntryTask');
+    module.exports.validateJaskerConfig = require('./validateJaskerConfig');
 })();

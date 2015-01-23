@@ -23,6 +23,11 @@ I'll remove this message once the code drops become less frequent and then follo
 
 ## Current Functionality:
 
+### Since v.0.1.7
+
+  - Fixed a closure related defect.
+  - Separated validation code from functional code in JaskerMap.  Structured the validation code for the expected growth of the config object
+
 ### Since v.0.1.4
 
   - State entry tasks implemented.  You can now define entry tasks that occur when the state is entered.  However, rollback upon failure is not yet available.  You'll need to handle that yourself.  See the JaskerEntryTask api and the entryTasks configuration documentation.
@@ -44,34 +49,53 @@ I'll remove this message once the code drops become less frequent and then follo
   - Supports cloning for multiple downstream states (flow splits).  Careful, merges are not yet implemented.  If you clone and re-merge on a common state, all entry tasks will be executed more than one time and if splitMode was copy the document will not merge.
 
 
-## Usage/Sample Application
+## Usage
 
- See https://github.com/FranzZemen/bsh-jasker-sample
+Currently usage is for trivial, splitting workflows, but still quite powerful.  At this time an overall management class is not provied.  You should separately persist your configuration object, its current state and the domain document and rebuild the JaskerIntance as needed with the current 'start' state.  A future implementation will provide much of the required management functions.
+and
 
-## Current Config Object
+  1.  Define your config object
+  2.  Create class implementations if necessary for JaskerNextDecision, JaskerEntryTask etc.
+  3.  Instantiate a JaskerMap
+  4.  Initialize the JaskerMap
+  5.  Instantiate at least one JaskerInstance potentially passing a document and the current starting state.
+  6.  As your workflow requires it, call next() on your JaskerIntance
+    1. As next() gets called, the internal state you configured will be updated
+    2. Any tasks you configured will fire appropriately
+    3. Any splits you configured will happen (resulting in multiple JaskerInstances for you to manage).
 
- Structure of the configuration:
+## Sample (but contrived) Application
 
-    {
-        name: Required Unique String
-        docKeyField : Optional String
-        promisesTimeout : Optional number
-        states: {
-            stateExample1: {
-                code: Optional Alphanumeric
-                data: Optional Static Object
-                next: Optional String or Array of Strings
-                nextDecision: Optional subclass of JaskerNextDecision
-                splitMode: Optional String of value 'clone' or 'reference'
-                entryTasks: {
-                    entryTask1: {
-                        task: Optional subclass of JaskerEntryTask
-                        optional:  Optional boolean.
+See https://github.com/FranzZemen/bsh-jasker-sample
+
+## Config Object
+
+The configuration object is shown below.  Note that the top level should be inline OR mongo or json.
+
+    config = {
+        inline :{
+            name: Required Unique String
+            docKeyField : Optional String
+            promisesTimeout : Optional number
+            states: {
+                stateExample1: {
+                    code: Optional Alphanumeric
+                    data: Optional Static Object
+                    next: Optional String or Array of Strings
+                    nextDecision: Optional subclass of JaskerNextDecision
+                    splitMode: Optional String of value 'clone' or 'reference'
+                    entryTasks: {
+                        entryTask1: {
+                            task: Optional subclass of JaskerEntryTask
+                            optional:  Optional boolean.
+                        }
                     }
-                }
-            },
-            stateExample2 : {}
-        }
+                },
+                stateExample2 : {}
+            }
+        },
+        json : {not yet supported},
+        mongo : {not yet supported}
     }
 
 Where:
@@ -157,22 +181,31 @@ for and used by the core but for which public usage could result in unintended c
 
   - **Accessors/Mutators**:  Priviledged or Public Methods that take an optional parameter.  Following JavaScript community conventions, when no parameter is passed, they are accessors; given a parameter they are mutators.  Sometimes only an accessor is provided.
 
-### JaskerMap Class API
+## JaskerMap Class API
 
    - JaskerMap is a controller for a particular state configuration.   It is the core workhorse that calculates next states, rollbacks etc.
 
    - Jasker implementations may have one ore more JaskerMap.  They may have one or more JaskerMap instances of the same flow although there are consequences to that.
 
-##### JaskerMap(bunyanStreams)
+### JaskerMap(bunyanStreams)
 
   - Constructor
 
   - Parameters:
 
-        bunyanStreams  Object, Optional.  The bunyan streams configuration for Jasker. If none is provided,
+        bunyanStreams:  Object, Optional.  The bunyan streams configuration for Jasker. If none is provided,
                        uses stdout with level info
 
-##### name
+### intialize(config)
+  - initializes the JaskerMap
+
+  - Parameters:
+
+        config:  Object, Required.  The configuration object.
+
+  - Returns: A promise that resolves on successful initialization and validation (no success value).
+
+### name
 
   - Priviledged method:  Accessor returning the name of the underlying state engine configuration.
 

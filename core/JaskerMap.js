@@ -17,10 +17,7 @@
     var JaskerNextDecision = require('./JaskerNextDecision');
     var JaskerEntryTask = require('./JaskerEntryTask');
     var JaskerExitTask = require('./JaskerExitTask');
-
-    var log;
-
-    var defaultPromisesTimeout = 60000;
+    var validate = require('./validateJaskerConfig');
 
     /**
      * JaskerMap
@@ -29,21 +26,23 @@
      * @constructor
      */
     function JaskerMap(bunyanStreams) {
+        var log,
+            defaultPromisesTimeout = 60000;
         if (bunyanStreams) {
-            log = bunyan.createLogger({name: 'JaskerMap', streams : bunyanStreams});
+            log = bunyan.createLogger({name: 'JaskerMap', streams: bunyanStreams});
         } else {
             log = bunyan.createLogger({name: 'JaskerMap', level: 'info'});
         }
-        var jaskerMapConfig = {};
-        var states = [];
-        var instanceNonPersisted = true;
+        var map;
+        var stateNames = [];
+        var self = this;
 
         /**
          * priviledged function bunyanStreams (intended for core)
          * Accessor returning the bunyanStreams configuration that was passed into the constructor
          * @returns bunyanStreams (Object)
          */
-        this.bunyanStreams = function() {
+        this.bunyanStreams = function () {
             return bunyanStreams;
         };
         /**
@@ -52,54 +51,49 @@
          * @returns name (String)
          */
         this.name = function () {
-            return jaskerMapConfig.name;
+            return map.name;
         };
 
         this._docKeyField = function () {
-            return jaskerMapConfig.docKeyField;
+            return map.docKeyField;
         };
         this._firstState = function () {
-            return states.length ? states[0] : undefined;
+            return stateNames.length ? stateNames[0] : undefined;
         };
 
         this._validState = function (state) {
-            return states.indexOf(state) >= 0;
+            return stateNames.indexOf(state) >= 0;
         };
 
         this.initialize = function (config) {
-            if (config.inline) {
-                return _loadInline(config.inline);
-            } else if (config.mongo) {
-                return _loadFromMongo(config.mongo);
-            } else if (config.json) {
-                return _loadFromJSON(config.json);
-            } else {
-                if (!defer) {
-                    log.error(new Error('No defer'));
-                }
-                var deferred = defer();
-                deferred.reject(new Error('Bad configuration - neither inline, mongo, or json'));
-                return deferred.promise;
-            }
+            var deferred = defer();
+            when(validate(config, bunyanStreams),
+                function (validationResult) {
+                    map = validationResult.map;
+                    stateNames = validationResult.stateNames;
+                    deferred.resolve();
+                }, function (err) {
+                    deferred.reject(err);
+                });
+            return deferred.promise;
         };
 
         this.next = function (jaskerInstance) {
-            var self = this,
-                deferred = defer(),
+            var deferred = defer(),
                 err;
-            _debugJaskerInstance(self,jaskerInstance, '\'next\' called');
+            _debugJaskerInstance(jaskerInstance, '\'next\' called');
             if (!jaskerInstance.current()) {
                 err = new Error('No current state defined on jaskerInstance ' + jaskerInstance.jaskerMapName() + ' for JaskerMap ' + self.name());
                 log.error(err);
                 deferred.reject(err);
-            } else if(states.indexOf(jaskerInstance.current()) < 0) {
+            } else if (stateNames.indexOf(jaskerInstance.current()) < 0) {
                 err = new Error('No state in JaskerMap ' + self.name() + ' named ' + jaskerInstance.current());
                 log.error(err);
                 deferred.reject(err);
             } else {
                 var fromState = _stateForName(jaskerInstance.current());
                 fromState.name = jaskerInstance.current();
-                return when(self._nextStates(fromState, jaskerInstance), function (nextStates) {
+                return when(_nextStates(fromState, jaskerInstance), function (nextStates) {
                     if (nextStates.length > 1) {
                         // Split the jaskerInstance
                         var jaskerInstances = jaskerInstance.split(nextStates.length, fromState.splitMode);
@@ -109,17 +103,17 @@
                         return jaskerInstances;
                         //deferred.resolve(jaskerInstances);
                     } else if (nextStates.length === 1) {
-                        _debugJaskerInstance(self, jaskerInstance, 'Resolving. Setting next state', nextStates);
+                        _debugJaskerInstance(jaskerInstance, 'Resolving. Setting next state', nextStates);
                         var toState = _stateForName(nextStates[0]);
                         toState.name = nextStates[0];
-                        return when(self._entryTasks(fromState, toState, jaskerInstance), function () {
+                        return when(_entryTasks(fromState, toState, jaskerInstance), function () {
                             jaskerInstance.newState(nextStates[0]);
                             return jaskerInstance;
                         }, function (err) {
                             return err;
                         });
-                    } else  {
-                        _debugJaskerInstance(self, jaskerInstance, 'Resolving. No next state, terminal', nextStates);
+                    } else {
+                        _debugJaskerInstance(jaskerInstance, 'Resolving. No next state, terminal', nextStates);
                         //deferred.resolve(jaskerInstance);
                         return jaskerInstance;
                     }
@@ -139,7 +133,7 @@
             //return deferred.promise;
         };
 
-        function _debugJaskerInstance(self,instance, message, object) {
+        function _debugJaskerInstance(instance, message, object) {
             if (log.debug()) {
                 if (object) {
                     log.debug({jaskerMap: self.name(), jaskerInstance: instance.ref(), ref: object}, message);
@@ -149,141 +143,12 @@
             }
         }
 
-        function _loadInline(inlineConfig) {
-            var deferred = defer();
-            jaskerMapConfig = inlineConfig;
-            jaskerMapConfig.type = module.exports.JaskerMapConfiguration.inline;
-            var err = _validate(jaskerMapConfig);
-            if (err) {
-                deferred.reject(err);
-            } else {
-                deferred.resolve('Success');
-            }
-            return deferred.promise;
-        }
-
-        function _loadFromMongo(mongoConfig) {
-            throw new Error('Not yet implemented');
-        }
-
-        function _loadFromJSON(jsonConfig) {
-            throw new Error('Not yet implemented');
-        }
-
-        // Validation
-
-        function _validate(map) {
-            var err = new Error('JaskerMap validation, errors in validationErrors field');
-            err.validationErrors = [];
-            if (map.name) {
-                if (typeof map.name !== 'string') {
-                    err.validationErrors.push('name is not a string');
-                }
-            } else {
-                err.validationErrors.push('no name provided');
-            }
-            if (map.docKeyField && typeof map.docKeyField !== 'string') {
-                err.validationErrors('docKeyField is not a string');
-            }
-            if (map.promiseTimeout && typeof map.promiseTimeout !== 'number') {
-                err.validationErrors('promisesTimeout provided but is not a number');
-            }
-            if (map.states === undefined) {
-                err.validationErrors.push('no states are defined');
-            }
-            var noStatesVisited = true;
-            _.forOwn(map.states, function (state, key) {
-                var nextFound = false;
-                noStatesVisited = false;
-                //if (state !== stateDef.name) {
-                //err.validationErrors.push('state name is wrong.  Expected: ' + state + ' Found: ' + stateDef.name);
-                //}
-                if (state.code && !(typeof state.code === 'number' || typeof state.code === 'string')) {
-                    err.validationErrors.push('' + key + '.code is not a number or a string: ' + state.code);
-                }
-                if (state.splitMode && state.splitMode !== 'clone' && state.splitMode !== 'reference') {
-                    err.validationErrors.push('' + key + '.splitMode is provided but value not \'clone\' or \'reference\'');
-                }
-                if (state.next) {
-                    if (typeof state.next == 'string') {
-                        if (map.states[state.next] === undefined) {
-                            err.validationErrors.push('' + key + '.next is not defined: ' + state.next);
-                        }
-                    } else if (state.next instanceof Array) {
-                        state.next.forEach(function(thisState,ndx) {
-                            if (map.states[thisState] === undefined) {
-                                err.validationErrors.push('' + key + '.next is not defined: ' + thisState);
-                            }
-                        });
-                    }
-                }
-                _validateClassDef(state.nextDecision, key + '.nextDecision', 'JaskerNextDecision', JaskerNextDecision, err);
-                _validateTasks(state.entryTasks, state + '.entryTasks', 'EntryTask', JaskerEntryTask, err);
-                _validateTasks(state.exitTasks, state + '.exitTasks', 'ExitTask', JaskerExitTask, err);
-                // Add this state to the states array
-                states.push(key);
-            });
-            if (noStatesVisited) {
-                err.validationErrors.push('No states defined under states');
-            }
-            if (err.validationErrors.length > 0) {
-                log.error({err:err},'Validation Errors');
-                return err;
-            }
-
-            function _validateTasks(tasks, logTaskEntryMsg, logTaskMsg, baseClass, err) {
-                if (tasks) {
-                    _.forOwn(tasks,function (val, key) {
-                        _validateClassDef(val.task, logTaskEntryMsg + '.' + key, logTaskMsg, baseClass, err);
-                        if (val.optional !== undefined && (typeof val.optional !== 'boolean')) {
-                            err.validationErrors.push(logTaskEntryMsg + '.optional is not true or false');
-                        }
-                    });
-                }
-            }
-
-            function _validateClassDef(classDef, logMsg, logClassMsg, baseClass, err) {
-                var instance;
-                if (classDef) {
-                    log.debug('classDef: ' + classDef)
-                    if (typeof classDef === 'string') {
-                        var classDefClass;
-                        try {
-                            classDefClass = require(classDef);
-                        } catch (reqErr) {
-                            log.error(reqErr,'reqErr: ');
-                            err.validationErrors.push(logMsg + ' require cannot load module for ' + logClassMsg + ': ' + classDef);
-                        }
-                        if (!classDefClass) {
-                            err.validationErrors.push(logMsg + ' constructor for ' + logClassMsg + ' not found by require: ' + classDef);
-                        } else {
-                            if (typeof classDefClass !== 'function') {
-                                err.validationErrors.push(logMsg + ' constructor for ' + logClassMsg + ' is not a constructor (or function): ' + classDef);
-                            } else {
-                                instance = new classDefClass();
-                                if (!(instance instanceof baseClass)) {
-                                    err.validationErrors.push(logMsg + ' is not a constructor for ' + logClassMsg + ': ' + classDef);
-                                }
-                            }
-                        }
-                    } else if (typeof classDef === 'function') {
-                        instance = new classDef();
-                        if (!(instance instanceof baseClass)) {
-                            err.validationErrors.push(logMsg + ' is not a constructor for ' + logClassMsg + ': ' + classDef.name);
-                        }
-                    } else {
-                        err.validationErrors.push(logMsg + ' is neither a string or a function');
-                    }
-                }
-            }
-        }
 
         function _stateForName(name) {
-            return jaskerMapConfig.states[name];
+            return map.states[name];
         }
 
-        this._nextStates = function (currentState, jaskerInstance) {
-            var self = this;
+        function _nextStates (currentState, jaskerInstance) {
             var deferred = defer();
             var nextStates = [];
             if (currentState.next && typeof currentState.next === 'string') {
@@ -296,22 +161,22 @@
                 if (typeof currentState.nextDecision === 'function') {
                     nextDecisionImpl = new currentState.nextDecision();
                 } else {
-                    var NextDecisionImpl = require (currentState.nextDecision);
+                    var NextDecisionImpl = require(currentState.nextDecision);
                     nextDecisionImpl = new NextDecisionImpl();
                 }
-                _debugJaskerInstance(self,jaskerInstance,'Calling JaskerNextDecision' + currentState.nextDecision);
+                _debugJaskerInstance(jaskerInstance, 'Calling JaskerNextDecision' + currentState.nextDecision);
 
 
                 var timedOutDeferred = defer(canceller);
                 var timeoutObject = setTimeout(function () {
                     timedOutDeferred.cancel();
-                }, jaskerMapConfig.promisesTimeout ? jaskerMapConfig.promisesTimeout : defaultPromisesTimeout);
+                }, map.promisesTimeout ? map.promisesTimeout : defaultPromisesTimeout);
 
                 // Note - we are NOT using the returned promise.  The contract SPECIFIES that the implementation
                 // use the passed in promise.  This is to protect the overall state engine and force a timeout in the
                 // case where the implementation goes on forever (relatively, at least), and moreover, fails to use
                 // this promise.
-                nextDecisionImpl.next(timedOutDeferred, jaskerInstance.document(), jaskerInstance.current(),currentState.data);
+                nextDecisionImpl.next(timedOutDeferred, jaskerInstance.document(), jaskerInstance.current(), currentState.data);
 
                 timedOutDeferred.promise.then(
                     function (nextStatesFromDecision) {
@@ -322,9 +187,9 @@
                             nextStates = unique(nextStates.concat(nextStatesFromDecision));
                             deferred.resolve(nextStates);
                         } else {
-                            var err = new Error ('Success value from JaskerNextDecision sub-class is not resolving to an Array for method next');
+                            var err = new Error('Success value from JaskerNextDecision sub-class is not resolving to an Array for method next');
                             _logError(err);
-                            deferred.reject (err);
+                            deferred.reject(err);
                         }
                     },
                     function (err) {
@@ -341,22 +206,19 @@
                 deferred.resolve(nextStates);
             }
             return deferred.promise;
-        };
+        }
 
-        this._entryTasks = function (fromState, toState, jaskerInstance) {
-            var self = this;
-
+        function _entryTasks (fromState, toState, jaskerInstance) {
             var configuredTasks = toState.entryTasks;
             var namedTasks = [];
-            _.forOwn(configuredTasks, function(task,key) {
+            _.forOwn(configuredTasks, function (task, key) {
                 task.name = key;
                 namedTasks.push(task);
             });
-            return self._task(namedTasks, 0, fromState, toState, jaskerInstance);
-        };
+            return _task(namedTasks, 0, fromState, toState, jaskerInstance);
+        }
 
-        this._task = function(tasks, ndx, fromState, toState, jaskerInstance) {
-            var self = this;
+        function _task (tasks, ndx, fromState, toState, jaskerInstance) {
             if (ndx >= tasks.length) {
                 return 'Done';
             } else {
@@ -367,15 +229,15 @@
                 if (typeof taskDef === 'function') {
                     taskImpl = new taskDef();
                 } else {
-                    var TaskImpl = require (taskDef);
+                    var TaskImpl = require(taskDef);
                     taskImpl = new TaskImpl();
                 }
-                _debugJaskerInstance(self,jaskerInstance,'Invoking task ' + taskName + ' in going from state ' + fromState.name + ' to state ' + toState.name);
+                _debugJaskerInstance(jaskerInstance, 'Invoking task ' + taskName + ' in going from state ' + fromState.name + ' to state ' + toState.name);
 
                 var timedOutDeferred = defer(canceller);
                 var timeoutObject = setTimeout(function () {
                     timedOutDeferred.cancel();
-                }, jaskerMapConfig.promisesTimeout ? jaskerMapConfig.promisesTimeout : defaultPromisesTimeout);
+                }, map.promisesTimeout ? map.promisesTimeout : defaultPromisesTimeout);
 
                 // Note - we are NOT using the returned promise.  The contract SPECIFIES that the implementation
                 // use the passed in promise.  This is to protect the overall state engine and force a timeout in the
@@ -387,7 +249,7 @@
                         if (timeoutObject) {
                             clearTimeout(timeoutObject);
                         }
-                        return self._task(tasks, ndx+1, fromState, toState, jaskerInstance);
+                        return _task(tasks, ndx + 1, fromState, toState, jaskerInstance);
                     },
                     function (err) {
                         if (timeoutObject) {
@@ -399,7 +261,7 @@
                     }
                 );
             }
-        };
+        }
 
 
         function _logError(err) {
@@ -412,17 +274,17 @@
             }
         }
 
-        function canceller () {
+        function canceller() {
             return new Error('Implementaton timed out.');
         }
     }
 
     var stateMapSpecification = {
         name: 'String, required: a required unique string representing the name of this JaskerMap',
-        docKeyField : 'String, optional: if a document is provided, a field that represents its key.  Even if a' +
+        docKeyField: 'String, optional: if a document is provided, a field that represents its key.  Even if a' +
         'document is provided, this is optiona.  The JaskerInstance will append the document key value to its' +
         'internal instance referece.  It greatly assists troubleshooting, maintenance, data mining etc.',
-        promiseTimeout : 'Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose' +
+        promiseTimeout: 'Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose' +
         'methods take a promise.  For example a JaskerNextDecision next method requires as a parameter  a promise' +
         'that it must then return.  That promise, provided by Jasker, has a timeout which will reject the promise if' +
         'the promise is not otherwise resolved or rejected prior.  The value of this timeout is this setting.  If none' +
@@ -434,10 +296,10 @@
                 data: 'Object, optional: arbitrary static JSON contents that is provided to custome BSHLogic ' +
                 'implementations when operating on this state',
 
-                cron : 'Scheduled task ',
+                cron: 'Scheduled task ',
 
-                done : {
-                    donePeriod : 'number, optiona: milliseconds between which to check the doneDecision',
+                done: {
+                    donePeriod: 'number, optiona: milliseconds between which to check the doneDecision',
                     doneDecision: 'JaskerDoneDecision subclass, optiona: dynamically determine when the state is done and' +
                     'the next state or nextStateDecision, transitions and linkages should be invoked.  This allows ' +
                     'for an automated way to move the work along; the alternative being to have non state engine related' +
