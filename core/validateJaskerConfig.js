@@ -63,6 +63,14 @@
             return deferred.promise;
         }
 
+        function _validateMongo(mongoConfig, validationResult) {
+
+
+            var mongoURI = require('../../config/environment').mongo.uri;
+            var db = require('mongoskin').db(mongoURI);
+            var ObjectID = require('mongodb').ObjectID;
+        }
+
         function _validateMap(map, validationResult) {
             var baseMessage = 'Validating mapping';
             log.debug(baseMessage);

@@ -37,23 +37,13 @@
         var stateNames = [];
         var self = this;
 
-        /**
-         * priviledged function bunyanStreams (intended for core)
-         * Accessor returning the bunyanStreams configuration that was passed into the constructor
-         * @returns bunyanStreams (Object)
-         */
+
         this.bunyanStreams = function () {
             return bunyanStreams;
         };
-        /**
-         * priviledged function name (Intended for core & public)
-         * Accessor returning the name of the underlying state engine configuration.
-         * @returns name (String)
-         */
         this.name = function () {
             return map.name;
         };
-
         this._docKeyField = function () {
             return map.docKeyField;
         };
@@ -64,7 +54,6 @@
         this._validState = function (state) {
             return stateNames.indexOf(state) >= 0;
         };
-
         this.initialize = function (config) {
             var deferred = defer();
             when(validate(config, bunyanStreams),
@@ -77,7 +66,6 @@
                 });
             return deferred.promise;
         };
-
         this.next = function (jaskerInstance) {
             var deferred = defer(),
                 err;
@@ -279,187 +267,192 @@
         }
     }
 
-    var stateMapSpecification = {
-        name: 'String, required: a required unique string representing the name of this JaskerMap',
-        docKeyField: 'String, optional: if a document is provided, a field that represents its key.  Even if a' +
-        'document is provided, this is optiona.  The JaskerInstance will append the document key value to its' +
-        'internal instance referece.  It greatly assists troubleshooting, maintenance, data mining etc.',
-        promiseTimeout: 'Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose' +
-        'methods take a promise.  For example a JaskerNextDecision next method requires as a parameter  a promise' +
-        'that it must then return.  That promise, provided by Jasker, has a timeout which will reject the promise if' +
-        'the promise is not otherwise resolved or rejected prior.  The value of this timeout is this setting.  If none' +
-        'is provided the default value is 60000.  node-promise is used to implement Jasker promises.',
-        states: {
-            stateExample1: {
-                code: 'Alphanumeric, optional: an optional arbitrary alpha-numeric value',
+    var config = {
+        mongo : {
+            uri : 'Fully qualified mongo path, including protocol, address and port'
+        },
+        inline: {
+            name: 'String, required: a required unique string representing the name of this JaskerMap',
+            docKeyField: 'String, optional: if a document is provided, a field that represents its key.  Even if a' +
+            'document is provided, this is optiona.  The JaskerInstance will append the document key value to its' +
+            'internal instance referece.  It greatly assists troubleshooting, maintenance, data mining etc.',
+            promiseTimeout: 'Number in milliseconds: The timeout for the promise passed to all Jasker implementations whose' +
+            'methods take a promise.  For example a JaskerNextDecision next method requires as a parameter  a promise' +
+            'that it must then return.  That promise, provided by Jasker, has a timeout which will reject the promise if' +
+            'the promise is not otherwise resolved or rejected prior.  The value of this timeout is this setting.  If none' +
+            'is provided the default value is 60000.  node-promise is used to implement Jasker promises.',
+            states: {
+                stateExample1: {
+                    code: 'Alphanumeric, optional: an optional arbitrary alpha-numeric value',
 
-                data: 'Object, optional: arbitrary static JSON contents that is provided to custome BSHLogic ' +
-                'implementations when operating on this state',
+                    data: 'Object, optional: arbitrary static JSON contents that is provided to custome BSHLogic ' +
+                    'implementations when operating on this state',
 
-                cron: 'Scheduled task ',
+                    cron: 'Scheduled task ',
 
-                done: {
-                    donePeriod: 'number, optiona: milliseconds between which to check the doneDecision',
-                    doneDecision: 'JaskerDoneDecision subclass, optiona: dynamically determine when the state is done and' +
-                    'the next state or nextStateDecision, transitions and linkages should be invoked.  This allows ' +
-                    'for an automated way to move the work along; the alternative being to have non state engine related' +
-                    'code determine that.\\r\\n' +
-                    'doneDecisions are evaluated immediately after a successful state entry and every time the donePeriod' +
-                    '(if configured) is evaluated.\\r\\n' +
-                    'Evidently, the JaskerDoneDecision subclass would operate on domain data be it from the document or' +
-                    'some other source.\\r\\n' +
-                    'Jasker will not trip an asynchronous doneDecisions with itself.  The next invocation of the ' +
-                    'doneDecision will not fire unless the previous one is complete.'
-                },
-                next: 'String or array of String, optional: statically provided next state name (for instance, ‘state2’).  ' +
-                'If neither next nor nextDecision are provided, the state is considered to be a terminal state.\\r\\n' +
-                'If an array is provide, a split occurs, where a JaskerInstance is split into two instances',
-
-                nextDecision: 'JaskerNextDecision subclass, optional: dynamically determine next state.  If neither ' +
-                'nextDecisoin nor next is provided, the state is considered to be a terminal state. \\r\\n' +
-                'nextDecision is either a constructor (inline) or a string from which a module can be loaded.\\r\\n' +
-                'Note that the module needs to either be npm published and installed, available through NODE_PATH ' +
-                '(most common) or relative to the location of bsh-jasker’s JaskerMap.js (least common and not ' +
-                'recommended).  The module’s require result should be a constructor (no fields on exports).\\r\\n' +
-                'The nextDecision constructor must be a sub-class of JaskerNextDecision.\\r\\n' +
-                'There can be only zero or one nextDecision per state.\\r\\n' +
-                'Note that nextDecision supports splits, which means that the workflow can split to more than one state.' +
-                'In that case, each split is unique from a perspective of error and rollback',
-
-                splitMode: 'Split mode (if and) when flow splits.  If set to \'clone\' then the underlying domain document ' +
-                'within the JaskerInstnace, if provided is copied.  If missing or set to \'reference\' then the underlying ' +
-                'domain document is shared.  Since this can be set at each state, different splitModes can be used ' +
-                'depending on the type of flows.  \\r\\n' +
-                'For example, if the split is permanent (never re-merged, it may ' +
-                'represent a flow that goes to different business units or systems.  In that case a splitMode of ' +
-                '\'clone\' is appropriate.  On the other hand, if changes are being made in parallel, but the changes' +
-                'should be made to the latest version, then a splitMode of \'reference\' is appropriate\\r\\n' +
-                'lodash.cloneDeep is used for the cloning process - the document must be compatible with that method.',
-
-                entryTasks: {
-                    entryTaskExample1: {
-                        task: 'JaskerEntryTask subclass, optional: constructor (inline) or modules (external).  See the ' +
-                        'module related comments in nextDecision.\\r\\n' +
-                        'The constructor must be a sub-class of JaskerEntryTask.\\r\\n' +
-                        'JaskerEntryTask(s) are performed when a state is attempted to be entered.  If optional is ' +
-                        'set, below, then failure of the task will not result in a rollback to the previous state.',
-
-                        optional: 'boolean, optional: an indicator to bsh-jasker that this task can succeed or ' +
-                        'fail without regards to success in entering the state.  If not set, or if set to false, ' +
-                        'then failure of the task will invoke a rollback on all entry tasks for this state, all ' +
-                        'transition tasks for the transition to this state and all exit tasks for the previous state.'
+                    done: {
+                        donePeriod: 'number, optiona: milliseconds between which to check the doneDecision',
+                        doneDecision: 'JaskerDoneDecision subclass, optiona: dynamically determine when the state is done and' +
+                        'the next state or nextStateDecision, transitions and linkages should be invoked.  This allows ' +
+                        'for an automated way to move the work along; the alternative being to have non state engine related' +
+                        'code determine that.\\r\\n' +
+                        'doneDecisions are evaluated immediately after a successful state entry and every time the donePeriod' +
+                        '(if configured) is evaluated.\\r\\n' +
+                        'Evidently, the JaskerDoneDecision subclass would operate on domain data be it from the document or' +
+                        'some other source.\\r\\n' +
+                        'Jasker will not trip an asynchronous doneDecisions with itself.  The next invocation of the ' +
+                        'doneDecision will not fire unless the previous one is complete.'
                     },
-                    entryTaskExample2: {}
-                },
-                exitTasks: {
-                    exitTaskExample1: {
-                        task: 'JaskerExitTask subclass, optional: optional constructor (inline) or modules (external).' +
-                        'See the module related comments in nextDecision.\\r\\n' +
-                        'The constructor must be a sub-class of JaskerExitTask\\r\\n' +
-                        'JaskerExitTask(s) are performed when a state is attempted to be exited.  If optional is ' +
-                        'set, below, then failure of the task will not result in a rollback that remains in the ' +
-                        'current state.',
+                    next: 'String or array of String, optional: statically provided next state name (for instance, ‘state2’).  ' +
+                    'If neither next nor nextDecision are provided, the state is considered to be a terminal state.\\r\\n' +
+                    'If an array is provide, a split occurs, where a JaskerInstance is split into two instances',
 
-                        optional: 'boolean, optional: an indicator to bsh-jasker that this task can succeed or ' +
-                        'fail without regards to success in exiting the state.  If not set, or if set to false, ' +
-                        'then failure of the task will invoke a rollback on all exit tasks for this state, and ' +
-                        'the current state will be maintained.'
-                    }
-                }
-            },
-            stateExample2: {}
-        },
-        transitions: {
-            comment: 'Sometimes actions between states cannot be expressed in terms of exit and entry tasks - at ' +
-            'such times transitions become useful.',
-            dynamic: {
-                comment: 'Logic that determines whether or not to be implemented based on contextual data.  This is ' +
-                'useful when transition actions could be performed under many situations for many different state to ' +
-                'state transitions.',
+                    nextDecision: 'JaskerNextDecision subclass, optional: dynamically determine next state.  If neither ' +
+                    'nextDecisoin nor next is provided, the state is considered to be a terminal state. \\r\\n' +
+                    'nextDecision is either a constructor (inline) or a string from which a module can be loaded.\\r\\n' +
+                    'Note that the module needs to either be npm published and installed, available through NODE_PATH ' +
+                    '(most common) or relative to the location of bsh-jasker’s JaskerMap.js (least common and not ' +
+                    'recommended).  The module’s require result should be a constructor (no fields on exports).\\r\\n' +
+                    'The nextDecision constructor must be a sub-class of JaskerNextDecision.\\r\\n' +
+                    'There can be only zero or one nextDecision per state.\\r\\n' +
+                    'Note that nextDecision supports splits, which means that the workflow can split to more than one state.' +
+                    'In that case, each split is unique from a perspective of error and rollback',
 
-                dynamicTransitionExample1: {
-                    dynamicCondition: 'JaskerTransitionDynamicCondition subclass, optional: constructor (inline) or ' +
-                    'modules (external).  See the module related comments in nextDecision.\\r\\n' +
-                    'The constructor must be a sub-class of JaskerDynamicTransitionCondition.\\r\\n' +
-                    'JaskerDynamicTransitionCondition determines whether the current transition requires the associated ' +
-                    'transitionTasks to be performed, and what the next state will be.',
+                    splitMode: 'Split mode (if and) when flow splits.  If set to \'clone\' then the underlying domain document ' +
+                    'within the JaskerInstnace, if provided is copied.  If missing or set to \'reference\' then the underlying ' +
+                    'domain document is shared.  Since this can be set at each state, different splitModes can be used ' +
+                    'depending on the type of flows.  \\r\\n' +
+                    'For example, if the split is permanent (never re-merged, it may ' +
+                    'represent a flow that goes to different business units or systems.  In that case a splitMode of ' +
+                    '\'clone\' is appropriate.  On the other hand, if changes are being made in parallel, but the changes' +
+                    'should be made to the latest version, then a splitMode of \'reference\' is appropriate\\r\\n' +
+                    'lodash.cloneDeep is used for the cloning process - the document must be compatible with that method.',
 
-                    transitionTasks: {
-                        transitionTaskExample1: {
-                            task: 'JaskerTransitionTask subclass, optional: constructor (inline) or modules (external).  ' +
-                            'See the module related comments in nextDecision.\\r\\n' +
-                            'The constructor must be a sub-class of JaskerTransitionTask.\\r\\n' +
-                            'JaskerTransitionTask(s) are performed when when a transition has been identified as ' +
-                            'having transitionTasks that should fire.  If optional is set, below, then failure of the ' +
-                            'task will not result in a rollback of the transition.  A rollback implies that all ' +
-                            'associated transition tasks as well as ExitTasks are rolled back',
+                    entryTasks: {
+                        entryTaskExample1: {
+                            task: 'JaskerEntryTask subclass, optional: constructor (inline) or modules (external).  See the ' +
+                            'module related comments in nextDecision.\\r\\n' +
+                            'The constructor must be a sub-class of JaskerEntryTask.\\r\\n' +
+                            'JaskerEntryTask(s) are performed when a state is attempted to be entered.  If optional is ' +
+                            'set, below, then failure of the task will not result in a rollback to the previous state.',
 
                             optional: 'boolean, optional: an indicator to bsh-jasker that this task can succeed or ' +
-                            'fail without regards to success in exiting the state.  If not set, or if set to false, ' +
-                            'then failure of the task will invoke a rollback on all exit tasks and all transition ' +
-                            'tasks and the current state will be maintained.'
+                            'fail without regards to success in entering the state.  If not set, or if set to false, ' +
+                            'then failure of the task will invoke a rollback on all entry tasks for this state, all ' +
+                            'transition tasks for the transition to this state and all exit tasks for the previous state.'
                         },
-                        transitionTaskExample2: {}
-                    }
-                }
-            },
-            static: {
-                staticTransitionExample1: {
-                    from: 'String, required: The starting state',
-                    to: 'String, required: The destination state',
-                    transitionTasks: {}
-                }
-            }
-        },
-        linkages: {
-            comment: 'This allows one domain state process to affect another.  For example, orders affecting inventory',
-            dynamic: {
-                dynamicLinkageExample1: {
-                    /*
-                     jaskerMap: 'string, required: The unique name of the JaskerMap to which we’re linking.',
-
-                     state: 'String, required: The state in the linked-to jaskerMap that we are entering.\\r\\n' +
-                     'Note that all entryTask states will be not invoked, unless disableEntryTasks is ' +
-                     'set to true.',
-
-                     invokeEntryTasks: 'boolean, optional: If missing or set to false will bypass state entry ' +
-                     'tasks in the target state.',
-                     */
-                    dynamicCondition: 'JaskerLinkageDynamicCondition subclass, optional: constructor (inline) or ' +
-                    'modules (external).  See the module related comments in nextDecision.\\r\\n' +
-                    'The constructor must be a sub-class of JaskerDynamicLinkageCondition.\\r\\n' +
-                    'JaskerDynamicLinkageCondition determines whether the current linkage requires the associated ' +
-                    'linkageTasks to be performed and what the linked state and jaskerMap will be and whether or not ' +
-                    'to invoke entryTasks in the other map\'s state',
-
-                    linkageTasks: {
-                        linkageTaskExample1: {
-                            task: 'JaskerLinkageTask subclass, optional: constructor (inline) or modules ' +
-                            '(external).  See the module related comments in nextDecision.\\r\\n' +
-                            'The constructor must be a sub-class of JaskerLinkageTask.\\r\\n' +
-                            'JaskerLinkageTask(s) are performed when when a linkage has been identified ' +
-                            'as having linkageTasks that should fire.  If optional is set, below, then ' +
-                            'failure of the task will not result in a rollback of the linkdage.  A rollback ' +
-                            'implies that all associated linkages tasks as well as JaskerExitTasks are rolled ' +
-                            'back',
+                        entryTaskExample2: {}
+                    },
+                    exitTasks: {
+                        exitTaskExample1: {
+                            task: 'JaskerExitTask subclass, optional: optional constructor (inline) or modules (external).' +
+                            'See the module related comments in nextDecision.\\r\\n' +
+                            'The constructor must be a sub-class of JaskerExitTask\\r\\n' +
+                            'JaskerExitTask(s) are performed when a state is attempted to be exited.  If optional is ' +
+                            'set, below, then failure of the task will not result in a rollback that remains in the ' +
+                            'current state.',
 
                             optional: 'boolean, optional: an indicator to bsh-jasker that this task can succeed or ' +
                             'fail without regards to success in exiting the state.  If not set, or if set to false, ' +
-                            'then failure of the task will invoke a rollback on all exit tasks and all linkage' +
-                            'tasks and the current state will be maintained.'
+                            'then failure of the task will invoke a rollback on all exit tasks for this state, and ' +
+                            'the current state will be maintained.'
                         }
                     }
                 },
-                dynamicLinkageExample2: {}
+                stateExample2: {}
             },
-            static: {
-                comment: 'Static linkages will always be executed',
-                staticLinkageExample1: {
-                    jaskerMap: 'already documented',
-                    state: 'already documented',
-                    invokeEntryTasks: 'boolean, optional: If missing or set to false will bypass state entry ' +
-                    'tasks in the target state.',
-                    linkageTasks: {}
+            transitions: {
+                comment: 'Sometimes actions between states cannot be expressed in terms of exit and entry tasks - at ' +
+                'such times transitions become useful.',
+                dynamic: {
+                    comment: 'Logic that determines whether or not to be implemented based on contextual data.  This is ' +
+                    'useful when transition actions could be performed under many situations for many different state to ' +
+                    'state transitions.',
+
+                    dynamicTransitionExample1: {
+                        dynamicCondition: 'JaskerTransitionDynamicCondition subclass, optional: constructor (inline) or ' +
+                        'modules (external).  See the module related comments in nextDecision.\\r\\n' +
+                        'The constructor must be a sub-class of JaskerDynamicTransitionCondition.\\r\\n' +
+                        'JaskerDynamicTransitionCondition determines whether the current transition requires the associated ' +
+                        'transitionTasks to be performed, and what the next state will be.',
+
+                        transitionTasks: {
+                            transitionTaskExample1: {
+                                task: 'JaskerTransitionTask subclass, optional: constructor (inline) or modules (external).  ' +
+                                'See the module related comments in nextDecision.\\r\\n' +
+                                'The constructor must be a sub-class of JaskerTransitionTask.\\r\\n' +
+                                'JaskerTransitionTask(s) are performed when when a transition has been identified as ' +
+                                'having transitionTasks that should fire.  If optional is set, below, then failure of the ' +
+                                'task will not result in a rollback of the transition.  A rollback implies that all ' +
+                                'associated transition tasks as well as ExitTasks are rolled back',
+
+                                optional: 'boolean, optional: an indicator to bsh-jasker that this task can succeed or ' +
+                                'fail without regards to success in exiting the state.  If not set, or if set to false, ' +
+                                'then failure of the task will invoke a rollback on all exit tasks and all transition ' +
+                                'tasks and the current state will be maintained.'
+                            },
+                            transitionTaskExample2: {}
+                        }
+                    }
+                },
+                static: {
+                    staticTransitionExample1: {
+                        from: 'String, required: The starting state',
+                        to: 'String, required: The destination state',
+                        transitionTasks: {}
+                    }
+                }
+            },
+            linkages: {
+                comment: 'This allows one domain state process to affect another.  For example, orders affecting inventory',
+                dynamic: {
+                    dynamicLinkageExample1: {
+                        /*
+                         jaskerMap: 'string, required: The unique name of the JaskerMap to which we’re linking.',
+
+                         state: 'String, required: The state in the linked-to jaskerMap that we are entering.\\r\\n' +
+                         'Note that all entryTask states will be not invoked, unless disableEntryTasks is ' +
+                         'set to true.',
+
+                         invokeEntryTasks: 'boolean, optional: If missing or set to false will bypass state entry ' +
+                         'tasks in the target state.',
+                         */
+                        dynamicCondition: 'JaskerLinkageDynamicCondition subclass, optional: constructor (inline) or ' +
+                        'modules (external).  See the module related comments in nextDecision.\\r\\n' +
+                        'The constructor must be a sub-class of JaskerDynamicLinkageCondition.\\r\\n' +
+                        'JaskerDynamicLinkageCondition determines whether the current linkage requires the associated ' +
+                        'linkageTasks to be performed and what the linked state and jaskerMap will be and whether or not ' +
+                        'to invoke entryTasks in the other map\'s state',
+
+                        linkageTasks: {
+                            linkageTaskExample1: {
+                                task: 'JaskerLinkageTask subclass, optional: constructor (inline) or modules ' +
+                                '(external).  See the module related comments in nextDecision.\\r\\n' +
+                                'The constructor must be a sub-class of JaskerLinkageTask.\\r\\n' +
+                                'JaskerLinkageTask(s) are performed when when a linkage has been identified ' +
+                                'as having linkageTasks that should fire.  If optional is set, below, then ' +
+                                'failure of the task will not result in a rollback of the linkdage.  A rollback ' +
+                                'implies that all associated linkages tasks as well as JaskerExitTasks are rolled ' +
+                                'back',
+
+                                optional: 'boolean, optional: an indicator to bsh-jasker that this task can succeed or ' +
+                                'fail without regards to success in exiting the state.  If not set, or if set to false, ' +
+                                'then failure of the task will invoke a rollback on all exit tasks and all linkage' +
+                                'tasks and the current state will be maintained.'
+                            }
+                        }
+                    },
+                    dynamicLinkageExample2: {}
+                },
+                static: {
+                    comment: 'Static linkages will always be executed',
+                    staticLinkageExample1: {
+                        jaskerMap: 'already documented',
+                        state: 'already documented',
+                        invokeEntryTasks: 'boolean, optional: If missing or set to false will bypass state entry ' +
+                        'tasks in the target state.',
+                        linkageTasks: {}
+                    }
                 }
             }
         }

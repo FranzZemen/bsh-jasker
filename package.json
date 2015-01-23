@@ -24,6 +24,8 @@
   },
   "homepage": "https://github.com/FranzZemen/bsh-jasker",
   "devDependencies": {
+    "mongodb": "^1.4.29",
+    "mongoskin": "^1.4.12",
     "should": "^4.6.0"
   },
   "dependencies": {
